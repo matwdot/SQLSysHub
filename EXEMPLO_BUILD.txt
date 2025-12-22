@@ -1,0 +1,77 @@
+📋 EXEMPLO DE EXECUÇÃO DO BUILD
+===============================
+
+🔧 1. VERIFICAR DEPENDÊNCIAS:
+-----------------------------
+python -c "import PyInstaller, PyQt5, qtawesome; print('✅ Tudo OK!')"
+
+🔧 2. TESTAR PYINSTALLER:
+------------------------
+python -m PyInstaller --version
+
+Deve mostrar algo como: 6.17.0
+
+🔧 3. EXECUTAR BUILD:
+--------------------
+
+Windows:
+--------
+build.bat
+
+Linux/Mac:
+----------
+chmod +x build.sh
+./build.sh
+
+Manual:
+-------
+python build_exe.py
+
+🔧 4. VERIFICAR RESULTADO:
+-------------------------
+dir dist\                    (Windows)
+ls -la dist/                 (Linux/Mac)
+
+Deve conter:
+- SQLSysHub.exe
+- instalar.bat
+- LEIA-ME.txt
+- imagens/ (se existir)
+
+🔧 5. TESTAR EXECUTÁVEL:
+-----------------------
+cd dist
+SQLSysHub.exe
+
+Deve abrir a interface gráfica sem erros.
+
+⚠️  COMANDOS CORRETOS:
+---------------------
+✅ python -m PyInstaller    (CORRETO)
+❌ pyinstaller             (PODE NÃO FUNCIONAR)
+
+✅ pip install PyInstaller  (CORRETO)
+✅ python -m pip install PyInstaller (ALTERNATIVO)
+
+🐛 SE DER ERRO:
+---------------
+1. Reinstalar PyInstaller:
+   pip uninstall PyInstaller
+   pip install PyInstaller
+
+2. Verificar versão Python:
+   python --version
+   (Deve ser 3.7+)
+
+3. Limpar cache:
+   pip cache purge
+
+4. Tentar instalação com --user:
+   pip install --user PyInstaller
+
+5. Usar ambiente virtual:
+   python -m venv build_env
+   build_env\Scripts\activate    (Windows)
+   source build_env/bin/activate (Linux/Mac)
+   pip install -r requirements_build.txt
+   python build_exe.py

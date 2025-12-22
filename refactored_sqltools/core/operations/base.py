@@ -1,0 +1,209 @@
+"""
+Base class for database operations.
+
+This module defines the abstract base class for all database operations,
+implementing the Template Method pattern to ensure consistent execution flow.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass
+class OperationResult:
+    """Result of a database operation execution."""
+    success: bool
+    message: str
+    data: Optional[Any] = None
+    rows_affected: Optional[int] = None
+    columns: Optional[List[str]] = None
+
+
+class ValidationError(Exception):
+    """Raised when operation parameter validation fails."""
+    pass
+
+
+class BaseOperation(ABC):
+    """
+    Abstract base class for database operations.
+    
+    This class implements the Template Method pattern, providing a consistent
+    execution flow while allowing subclasses to customize specific steps.
+    """
+    
+    def __init__(self, name: str, description: str):
+        """
+        Initialize the operation.
+        
+        Args:
+            name: Operation name/identifier
+            description: Human-readable description of the operation
+        """
+        self.name = name
+        self.description = description
+    
+    @abstractmethod
+    def get_sql(self, **params) -> str:
+        """
+        Generate the SQL query for this operation.
+        
+        Args:
+            **params: Operation-specific parameters
+            
+        Returns:
+            str: SQL query string
+            
+        Raises:
+            ValidationError: If parameters are invalid
+        """
+        pass
+    
+    def validate_params(self, **params) -> bool:
+        """
+        Validate operation parameters.
+        
+        This method should be overridden by subclasses to implement
+        operation-specific parameter validation.
+        
+        Args:
+            **params: Parameters to validate
+            
+        Returns:
+            bool: True if parameters are valid
+            
+        Raises:
+            ValidationError: If parameters are invalid
+        """
+        return True
+    
+    def _validate_date_range(self, data_inicio: str, data_fim: str) -> bool:
+        """
+        Validate date range parameters.
+        
+        Args:
+            data_inicio: Start date in YYYY-MM-DD format
+            data_fim: End date in YYYY-MM-DD format
+            
+        Returns:
+            bool: True if date range is valid
+            
+        Raises:
+            ValidationError: If date format or range is invalid
+        """
+        try:
+            start_date = datetime.strptime(data_inicio, '%Y-%m-%d')
+            end_date = datetime.strptime(data_fim, '%Y-%m-%d')
+            
+            if start_date > end_date:
+                raise ValidationError("Data de início deve ser anterior à data de fim")
+                
+            return True
+        except ValueError as e:
+            raise ValidationError(f"Formato de data inválido: {str(e)}")
+    
+    def _validate_required_params(self, required_params: List[str], **params) -> bool:
+        """
+        Validate that all required parameters are present.
+        
+        Args:
+            required_params: List of required parameter names
+            **params: Provided parameters
+            
+        Returns:
+            bool: True if all required parameters are present
+            
+        Raises:
+            ValidationError: If any required parameter is missing
+        """
+        missing_params = [param for param in required_params if param not in params or params[param] is None]
+        
+        if missing_params:
+            raise ValidationError(f"Parâmetros obrigatórios ausentes: {', '.join(missing_params)}")
+            
+        return True
+    
+    def execute(self, db_manager, **params) -> OperationResult:
+        """
+        Execute the operation using the Template Method pattern.
+        
+        This method defines the execution flow:
+        1. Validate parameters
+        2. Generate SQL
+        3. Execute query
+        4. Process results
+        
+        Args:
+            db_manager: DatabaseManager instance
+            **params: Operation parameters
+            
+        Returns:
+            OperationResult: Result of the operation
+        """
+        try:
+            # Step 1: Validate parameters
+            self.validate_params(**params)
+            
+            # Step 2: Generate SQL
+            sql = self.get_sql(**params)
+            
+            # Step 3: Execute query
+            result = db_manager.execute_query(sql)
+            
+            # Step 4: Process results
+            return self._process_result(result)
+            
+        except ValidationError as e:
+            return OperationResult(
+                success=False,
+                message=f"Erro de validação: {str(e)}"
+            )
+        except Exception as e:
+            return OperationResult(
+                success=False,
+                message=f"Falha na operação: {str(e)}"
+            )
+    
+    def _process_result(self, raw_result: Dict) -> OperationResult:
+        """
+        Process raw database result into OperationResult.
+        
+        This method can be overridden by subclasses for custom result processing.
+        
+        Args:
+            raw_result: Raw result from database driver
+            
+        Returns:
+            OperationResult: Processed result
+        """
+        if 'columns' in raw_result and 'data' in raw_result:
+            # SELECT query result
+            return OperationResult(
+                success=True,
+                message=f"Consulta executada com sucesso. {len(raw_result['data'])} linhas retornadas.",
+                data=raw_result['data'],
+                columns=raw_result['columns']
+            )
+        elif 'rows_affected' in raw_result:
+            # UPDATE/INSERT/DELETE result
+            return OperationResult(
+                success=True,
+                message=f"Operação executada com sucesso. {raw_result['rows_affected']} linhas afetadas.",
+                rows_affected=raw_result['rows_affected']
+            )
+        else:
+            # Generic success
+            return OperationResult(
+                success=True,
+                message="Operação executada com sucesso."
+            )
+    
+    def __str__(self) -> str:
+        """String representation of the operation."""
+        return f"{self.name}: {self.description}"
+    
+    def __repr__(self) -> str:
+        """Developer representation of the operation."""
+        return f"{self.__class__.__name__}(name='{self.name}', description='{self.description}')"

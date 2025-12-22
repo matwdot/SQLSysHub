@@ -1,0 +1,26 @@
+# Dependências para build do executável
+PyInstaller>=5.0.0
+PyQt5>=5.15.0
+qtawesome>=1.0.0
+
+# Drivers de banco de dados (opcionais)
+# Descomente os que você quer incluir no executável:
+
+# Firebird (recomendado)
+firebirdsql>=1.2.0
+passlib>=1.7.0
+
+# Firebird (alternativo)
+# fdb>=2.0.0
+
+# SQL Server (requer ODBC Driver 17 no sistema)
+# pyodbc>=4.0.0
+
+# PostgreSQL
+# psycopg2-binary>=2.9.0
+
+# MySQL
+# mysql-connector-python>=8.0.0
+
+# Para instalar todas as dependências de build:
+# pip install -r requirements_build.txt

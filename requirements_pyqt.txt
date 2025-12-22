@@ -1,0 +1,28 @@
+# Dependências para a versão PyQt5
+PyQt5>=5.15.0
+qtawesome>=1.0.0
+
+# Dependências opcionais para drivers de banco de dados
+# Instale apenas os drivers que você precisa:
+
+# Firebird (recomendado - mais compatível)
+# firebirdsql
+# passlib  # Dependência do firebirdsql
+
+# Firebird (alternativo)
+# fdb
+
+# SQL Server (requer ODBC Driver 17 instalado no sistema)
+# pyodbc
+
+# PostgreSQL
+# psycopg2-binary
+
+# MySQL
+# mysql-connector-python
+
+# Para instalar PyQt5 e Firebird (recomendado):
+# pip install PyQt5 firebirdsql passlib
+
+# Para instalar todos os drivers com PyQt5:
+# pip install PyQt5 firebirdsql passlib fdb pyodbc psycopg2-binary mysql-connector-python
