@@ -135,11 +135,44 @@ def main():
         # Try to show error dialog if possible
         try:
             if 'app' in locals():
-                QMessageBox.critical(
-                    None,
-                    "SQL SysHub Error",
-                    f"Failed to start SQL SysHub:\n\n{str(e)}"
-                )
+                msg_box = QMessageBox()
+                msg_box.setWindowTitle("Erro do SQL SysHub")
+                msg_box.setText("Falha ao iniciar o SQL SysHub")
+                msg_box.setInformativeText(str(e))
+                msg_box.setIcon(QMessageBox.Critical)
+                
+                # Custom OK button
+                ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
+                
+                # Style the message box
+                msg_box.setStyleSheet("""
+                    QMessageBox {
+                        background-color: white;
+                        color: #2c3e50;
+                        font-size: 12px;
+                    }
+                    QMessageBox QLabel {
+                        color: #2c3e50;
+                        padding: 10px;
+                    }
+                    QMessageBox QPushButton {
+                        background-color: #e74c3c;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        padding: 8px 20px;
+                        font-weight: bold;
+                        min-width: 80px;
+                    }
+                    QMessageBox QPushButton:hover {
+                        background-color: #c0392b;
+                    }
+                    QMessageBox QPushButton:pressed {
+                        background-color: #a93226;
+                    }
+                """)
+                
+                msg_box.exec_()
         except:
             pass
         

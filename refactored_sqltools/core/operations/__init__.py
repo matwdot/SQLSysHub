@@ -8,8 +8,8 @@ from .predefined import (
     ApagarCertificadoOperation,
     CorrigirErroEquipamentoOperation,
     LimparTabelasFiscoOperation,
-    ConsultarTransacoesOperation,
-    ConsultarProprioOperation,
+    # ConsultarTransacoesOperation,  # Removida
+    # ConsultarProprioOperation,     # Removida
     ConsultarNCMInexistenteOperation,
     OperationRegistry,
     operation_registry
@@ -23,8 +23,8 @@ __all__ = [
     'ApagarCertificadoOperation',
     'CorrigirErroEquipamentoOperation',
     'LimparTabelasFiscoOperation',
-    'ConsultarTransacoesOperation',
-    'ConsultarProprioOperation',
+    # 'ConsultarTransacoesOperation',  # Removida
+    # 'ConsultarProprioOperation',     # Removida
     'ConsultarNCMInexistenteOperation',
     'OperationRegistry',
     'operation_registry'

@@ -210,11 +210,44 @@ class ConnectionPanel(QWidget):
             # Validate Firebird file existence
             if db_type == "Firebird" and database and not os.path.exists(database):
                 from PyQt5.QtWidgets import QMessageBox
-                QMessageBox.critical(
-                    self,
-                    "Erro",
-                    f"Arquivo de banco de dados não encontrado:\n\n{database}\n\nVerifique o caminho e tente novamente."
-                )
+                msg_box = QMessageBox(self)
+                msg_box.setWindowTitle("Erro")
+                msg_box.setText("Arquivo de banco de dados não encontrado")
+                msg_box.setInformativeText(f"Caminho: {database}\n\nVerifique o caminho e tente novamente.")
+                msg_box.setIcon(QMessageBox.Critical)
+                
+                # Custom OK button in Portuguese
+                ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
+                
+                # Style the message box
+                msg_box.setStyleSheet("""
+                    QMessageBox {
+                        background-color: white;
+                        color: #2c3e50;
+                        font-size: 12px;
+                    }
+                    QMessageBox QLabel {
+                        color: #2c3e50;
+                        padding: 10px;
+                    }
+                    QMessageBox QPushButton {
+                        background-color: #e74c3c;
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        padding: 8px 20px;
+                        font-weight: bold;
+                        min-width: 80px;
+                    }
+                    QMessageBox QPushButton:hover {
+                        background-color: #c0392b;
+                    }
+                    QMessageBox QPushButton:pressed {
+                        background-color: #a93226;
+                    }
+                """)
+                
+                msg_box.exec_()
                 return
             
             self.connection_requested.emit(db_type, host, port, username, password, database)

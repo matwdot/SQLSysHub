@@ -78,30 +78,30 @@ class LimparTabelasFiscoOperation(BaseOperation):
 END"""
 
 
-class ConsultarTransacoesOperation(BaseOperation):
-    """Consulta as transações na tabela TRANSACAO."""
+# class ConsultarTransacoesOperation(BaseOperation):
+#     """Consulta as transações na tabela TRANSACAO."""
     
-    def __init__(self):
-        super().__init__(
-            name="Consultar Transações",
-            description="Consulta as transações na tabela TRANSACAO"
-        )
+#     def __init__(self):
+#         super().__init__(
+#             name="Consultar Transações",
+#             description="Consulta as transações na tabela TRANSACAO"
+#         )
     
-    def get_sql(self, **params) -> str:
-        return "SELECT * FROM TRANSACAO"
+#     def get_sql(self, **params) -> str:
+#         return "SELECT * FROM TRANSACAO"
 
 
-class ConsultarProprioOperation(BaseOperation):
-    """Consulta os dados da tabela PROPRIO."""
+# class ConsultarProprioOperation(BaseOperation):
+#     """Consulta os dados da tabela PROPRIO."""
     
-    def __init__(self):
-        super().__init__(
-            name="Consultar Proprio",
-            description="Consulta os dados da tabela PROPRIO"
-        )
+#     def __init__(self):
+#         super().__init__(
+#             name="Consultar Proprio",
+#             description="Consulta os dados da tabela PROPRIO"
+#         )
     
-    def get_sql(self, **params) -> str:
-        return "SELECT * FROM PROPRIO"
+#     def get_sql(self, **params) -> str:
+#         return "SELECT * FROM PROPRIO"
 
 
 class ConsultarNCMInexistenteOperation(BaseOperation):
@@ -156,8 +156,8 @@ class OperationRegistry:
             ApagarCertificadoOperation(),
             CorrigirErroEquipamentoOperation(),
             LimparTabelasFiscoOperation(),
-            ConsultarTransacoesOperation(),
-            ConsultarProprioOperation(),
+            # ConsultarTransacoesOperation(),
+            # ConsultarProprioOperation(),
             ConsultarNCMInexistenteOperation(),
         ]
         

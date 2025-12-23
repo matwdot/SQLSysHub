@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Main Window for SQL SysHub Application
 
@@ -46,7 +47,7 @@ class MainWindow(QMainWindow):
     
     def setup_window(self):
         """Configure main window properties"""
-        self.setWindowTitle("SQL SysHub - Utilitários de Banco de Dados")
+        self.setWindowTitle("SQL SysHub - Utilitarios de Banco de Dados")
         
         # Set window icon if available
         try:
@@ -167,7 +168,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(title_layout)
         
         # SQL display group
-        self.sql_group = QGroupBox("📝 SQL a ser executado")
+        self.sql_group = QGroupBox("SQL a ser executado")
         sql_layout = QVBoxLayout(self.sql_group)
         
         # Use the new SQL editor widget
@@ -210,7 +211,7 @@ class MainWindow(QMainWindow):
                 border-radius: 4px;
                 padding: 8px 20px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
                 min-height: 25px;
             }
             QPushButton:hover {
@@ -333,34 +334,182 @@ class MainWindow(QMainWindow):
             # Show success message in status bar instead of popup
             self.show_success_status(message, 8000)  # Show for 8 seconds
         else:
-            self.connection_panel.update_status(False, "Erro na conexão")
+            self.connection_panel.update_status(False, "Erro na conexao")
             # Show error in status bar and popup for critical errors
             self.show_error_status(message, 10000)  # Show for 10 seconds
-            QMessageBox.critical(self, "❌ Erro de Conexão", message)
+            
+            # Custom error dialog
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Erro de Conexao")
+            msg_box.setText("Falha ao conectar com o banco de dados")
+            msg_box.setInformativeText(message)
+            msg_box.setIcon(QMessageBox.Critical)
+            
+            # Custom OK button
+            ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
+            
+            # Style the message box
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: white;
+                    color: #2c3e50;
+                    font-size: 14px;
+                }
+                QMessageBox QLabel {
+                    color: #2c3e50;
+                    padding: 10px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                    min-width: 80px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #c0392b;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #a93226;
+                }
+            """)
+            
+            msg_box.exec_()
     
     def execute_operation(self):
         """Execute the selected database operation"""
         if not self.db_manager.is_connected():
-            QMessageBox.warning(self, "Aviso", "Conecte-se ao banco primeiro!")
+            # Custom warning dialog
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Aviso")
+            msg_box.setText("Conecte-se ao banco de dados primeiro")
+            msg_box.setInformativeText("E necessario estabelecer uma conexao antes de executar operacoes.")
+            msg_box.setIcon(QMessageBox.Warning)
+            
+            # Custom OK button
+            ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
+            
+            # Style the message box
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: white;
+                    color: #2c3e50;
+                    font-size: 14px;
+                }
+                QMessageBox QLabel {
+                    color: #2c3e50;
+                    padding: 10px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #f39c12;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                    min-width: 80px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #e67e22;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #d35400;
+                }
+            """)
+            
+            msg_box.exec_()
             return
         
         # Get current operation
         operation = self.operation_selector.get_current_operation()
         if not operation:
-            QMessageBox.warning(self, "Aviso", "Selecione uma operação!")
+            # Custom warning dialog
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Aviso")
+            msg_box.setText("Selecione uma operacao")
+            msg_box.setInformativeText("Escolha uma operacao da lista antes de executar.")
+            msg_box.setIcon(QMessageBox.Warning)
+            
+            # Custom OK button
+            ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
+            
+            # Style the message box
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: white;
+                    color: #2c3e50;
+                    font-size: 14px;
+                }
+                QMessageBox QLabel {
+                    color: #2c3e50;
+                    padding: 10px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #f39c12;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                    min-width: 80px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #e67e22;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #d35400;
+                }
+            """)
+            
+            msg_box.exec_()
             return
         
         operation_name = operation['name']
         
         # Confirm operation
-        reply = QMessageBox.question(
-            self,
-            "Confirmar Operação",
-            f"Deseja realmente executar:\n\n{operation_name}?\n\n{operation['description']}",
-            QMessageBox.Yes | QMessageBox.No
-        )
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("Confirmar Operacao")
+        msg_box.setText(f"Deseja realmente executar a operacao:")
+        msg_box.setInformativeText(f"{operation_name}\n\n{operation['description']}")
+        msg_box.setIcon(QMessageBox.Question)
         
-        if reply != QMessageBox.Yes:
+        # Custom buttons in Portuguese
+        sim_btn = msg_box.addButton("Sim", QMessageBox.YesRole)
+        nao_btn = msg_box.addButton("Nao", QMessageBox.NoRole)
+        
+        # Style the message box
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: white;
+                color: #2c3e50;
+                font-size: 14px;
+            }
+            QMessageBox QLabel {
+                color: #2c3e50;
+                padding: 10px;
+            }
+            QMessageBox QPushButton {
+                background-color: #3498db;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 20px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QMessageBox QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        
+        reply = msg_box.exec_()
+        
+        if msg_box.clickedButton() != sim_btn:
             return
         
         # Prepare UI
@@ -412,7 +561,46 @@ class MainWindow(QMainWindow):
         else:
             # Show error in status bar and popup for critical errors
             self.show_error_status(message, 10000)  # Show for 10 seconds
-            QMessageBox.critical(self, "❌ Erro na Operação", message)
+            
+            # Custom error dialog
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("Erro na Operacao")
+            msg_box.setText("Falha ao executar a operacao")
+            msg_box.setInformativeText(message)
+            msg_box.setIcon(QMessageBox.Critical)
+            
+            # Custom OK button
+            ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
+            
+            # Style the message box
+            msg_box.setStyleSheet("""
+                QMessageBox {
+                    background-color: white;
+                    color: #2c3e50;
+                    font-size: 14px;
+                }
+                QMessageBox QLabel {
+                    color: #2c3e50;
+                    padding: 10px;
+                }
+                QMessageBox QPushButton {
+                    background-color: #e74c3c;
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                    min-width: 80px;
+                }
+                QMessageBox QPushButton:hover {
+                    background-color: #c0392b;
+                }
+                QMessageBox QPushButton:pressed {
+                    background-color: #a93226;
+                }
+            """)
+            
+            msg_box.exec_()
     
     def update_sql_display(self, sql):
         """Update the SQL display with new SQL text"""
@@ -442,15 +630,15 @@ class MainWindow(QMainWindow):
     
     def show_success_status(self, message, timeout=5000):
         """Show a success message in the status bar"""
-        self.status_bar.showMessage(f"✅ {message}", timeout)
+        self.status_bar.showMessage(f"Sucesso: {message}", timeout)
     
     def show_error_status(self, message, timeout=8000):
         """Show an error message in the status bar"""
-        self.status_bar.showMessage(f"❌ {message}", timeout)
+        self.status_bar.showMessage(f"Erro: {message}", timeout)
     
     def show_info_status(self, message, timeout=3000):
         """Show an info message in the status bar"""
-        self.status_bar.showMessage(f"ℹ️ {message}", timeout)
+        self.status_bar.showMessage(f"Info: {message}", timeout)
     
     def on_cell_copied(self, text):
         """Handle cell content copied to clipboard"""

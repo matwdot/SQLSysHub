@@ -144,14 +144,7 @@ SET PRPCERELE = NULL,
   DELETE FROM FISCO_ITEMINVENTARIO;
 END"""
             },
-            "Consultar Transações": {
-                "description": "Consulta as transações na tabela TRANSACAO",
-                "execute_sql": "SELECT * FROM TRANSACAO"
-            },
-            "Consultar Proprio": {
-                "description": "Consulta os dados da tabela PROPRIO",
-                "execute_sql": "SELECT * FROM PROPRIO"
-            },
+
             "Consultar NCM Inexistente": {
                 "description": "Consulta transações com NCM inexistente no período",
                 "execute_sql": """SELECT 
