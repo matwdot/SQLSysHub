@@ -9,7 +9,7 @@ Adds toggle between table and text display modes.
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
                             QTableWidget, QTableWidgetItem, QGroupBox, 
-                            QPushButton, QApplication)
+                            QPushButton, QApplication, QLabel, QSpinBox)
 from PyQt5.QtCore import pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve, QRect
 from PyQt5.QtGui import QFont, QPalette, QBrush, QColor
 import qtawesome as qta
@@ -28,6 +28,14 @@ class ResultsDisplay(QWidget):
         self.animation_timer = QTimer()
         self.animation_timer.setSingleShot(True)
         self.animation_timer.timeout.connect(self.reset_cell_style)
+        
+        # Pagination data
+        self.all_data = []
+        self.all_columns = []
+        self.current_page = 1
+        self.rows_per_page = 100
+        self.total_pages = 1
+        
         self.setup_ui()
         self.setup_styles()
     
@@ -50,6 +58,42 @@ class ResultsDisplay(QWidget):
         self.toggle_btn.setVisible(False)  # Initially hidden
         toggle_layout.addWidget(self.toggle_btn)
         results_layout.addLayout(toggle_layout)
+        
+        # Pagination controls
+        self.pagination_widget = QWidget()
+        pagination_layout = QHBoxLayout(self.pagination_widget)
+        pagination_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Previous button
+        self.prev_btn = QPushButton("◀ Anterior")
+        self.prev_btn.clicked.connect(self.previous_page)
+        self.prev_btn.setEnabled(False)
+        pagination_layout.addWidget(self.prev_btn)
+        
+        # Page info
+        self.page_label = QLabel("Página 1 de 1")
+        self.page_label.setStyleSheet("font-weight: bold; color: #34495e; padding: 5px 10px;")
+        pagination_layout.addWidget(self.page_label)
+        
+        # Next button
+        self.next_btn = QPushButton("Próxima ▶")
+        self.next_btn.clicked.connect(self.next_page)
+        self.next_btn.setEnabled(False)
+        pagination_layout.addWidget(self.next_btn)
+        
+        pagination_layout.addStretch()
+        
+        # Records per page
+        pagination_layout.addWidget(QLabel("Registros por página:"))
+        self.rows_per_page_spin = QSpinBox()
+        self.rows_per_page_spin.setRange(10, 1000)
+        self.rows_per_page_spin.setValue(100)
+        self.rows_per_page_spin.setSingleStep(50)
+        self.rows_per_page_spin.valueChanged.connect(self.change_rows_per_page)
+        pagination_layout.addWidget(self.rows_per_page_spin)
+        
+        self.pagination_widget.setVisible(False)
+        results_layout.addWidget(self.pagination_widget)
         
         # Text display
         self.results_text = QTextEdit()
@@ -107,6 +151,30 @@ class ResultsDisplay(QWidget):
                 background-color: #d5dbdb;
                 color: #2c3e50;
             }
+            QPushButton:disabled {
+                background-color: #f8f9fa;
+                color: #bdc3c7;
+                border-color: #ecf0f1;
+            }
+            QWidget QPushButton {
+                max-width: none;
+                min-width: 80px;
+                min-height: 28px;
+                font-size: 11px;
+                padding: 6px 12px;
+            }
+            QSpinBox {
+                border: 1px solid #bdc3c7;
+                border-radius: 3px;
+                padding: 4px;
+                background-color: white;
+                color: #2c3e50;
+                font-size: 11px;
+                min-width: 60px;
+            }
+            QSpinBox:hover {
+                border-color: #3498db;
+            }
             QTextEdit {
                 border: 1px solid #bdc3c7;
                 border-radius: 4px;
@@ -155,49 +223,30 @@ class ResultsDisplay(QWidget):
         self.results_table.setVisible(False)
     
     def display_table_results(self, columns, data, message=""):
-        """Display tabular results"""
+        """Display tabular results with internal pagination"""
+        # Store all data for pagination
+        self.all_data = data
+        self.all_columns = columns
+        self.current_page = 1
+        self.rows_per_page = self.rows_per_page_spin.value()
+        self.total_pages = max(1, (len(data) + self.rows_per_page - 1) // self.rows_per_page)
+        
         # Update text display with summary
         if message:
             summary = f"{message}\n\n📊 {len(data)} linhas retornadas."
-            if len(data) > 50:
-                summary += f"\n... ({len(data) - 50} linhas omitidas na tabela)"
             self.results_text.setPlainText(summary)
         else:
             self.results_text.setPlainText(f"📊 {len(data)} linhas retornadas.")
         
-        # Configure table
-        display_rows = min(len(data), 50)  # Limit to 50 rows for performance
-        self.results_table.setRowCount(display_rows)
-        self.results_table.setColumnCount(len(columns))
-        self.results_table.setHorizontalHeaderLabels(columns)
-        
-        # Populate table data
-        for row_idx, row in enumerate(data[:50]):
-            for col_idx, val in enumerate(row):
-                item = QTableWidgetItem(str(val) if val is not None else "NULL")
-                self.results_table.setItem(row_idx, col_idx, item)
-        
-        # Resize columns to content and stretch to fill available space
-        self.results_table.resizeColumnsToContents()
-        
-        # If there are few columns, stretch them to fill the available width
-        if len(columns) <= 5:  # For 5 or fewer columns
-            header = self.results_table.horizontalHeader()
-            header.setStretchLastSection(True)
-            # Distribute space more evenly among columns
-            for col in range(len(columns)):
-                header.setSectionResizeMode(col, header.Stretch)
+        # Show pagination controls if needed
+        if len(data) > self.rows_per_page:
+            self.pagination_widget.setVisible(True)
+            self.update_pagination_controls()
         else:
-            # For many columns, use content-based sizing
-            header = self.results_table.horizontalHeader()
-            header.setStretchLastSection(False)
-            for col in range(len(columns)):
-                header.setSectionResizeMode(col, header.ResizeToContents)
+            self.pagination_widget.setVisible(False)
         
-        # Ensure table fills vertical space when there are few rows
-        if display_rows <= 10:  # For 10 or fewer rows
-            # Use a timer to adjust row heights after the widget is properly sized
-            QTimer.singleShot(100, lambda: self.adjust_row_heights_for_space(display_rows))
+        # Display current page
+        self.display_current_page()
         
         # Show toggle button and set initial mode to TABLE (default for tabular data)
         self.toggle_btn.setVisible(True)
@@ -209,6 +258,83 @@ class ResultsDisplay(QWidget):
         text_icon = qta.icon('fa5s.align-left', color='#7f8c8d')
         self.toggle_btn.setIcon(text_icon)
         self.toggle_btn.setToolTip("Mostrar Texto")
+    
+    def display_current_page(self):
+        """Display the current page of data"""
+        if not self.all_data:
+            return
+        
+        # Calculate page boundaries
+        start_idx = (self.current_page - 1) * self.rows_per_page
+        end_idx = min(start_idx + self.rows_per_page, len(self.all_data))
+        page_data = self.all_data[start_idx:end_idx]
+        
+        # Configure table
+        self.results_table.setRowCount(len(page_data))
+        self.results_table.setColumnCount(len(self.all_columns))
+        self.results_table.setHorizontalHeaderLabels(self.all_columns)
+        
+        # Populate table data for current page
+        for row_idx, row in enumerate(page_data):
+            for col_idx, val in enumerate(row):
+                item = QTableWidgetItem(str(val) if val is not None else "NULL")
+                self.results_table.setItem(row_idx, col_idx, item)
+        
+        # Resize columns to content and stretch to fill available space
+        self.results_table.resizeColumnsToContents()
+        
+        # If there are few columns, stretch them to fill the available width
+        if len(self.all_columns) <= 5:  # For 5 or fewer columns
+            header = self.results_table.horizontalHeader()
+            header.setStretchLastSection(True)
+            # Distribute space more evenly among columns
+            for col in range(len(self.all_columns)):
+                header.setSectionResizeMode(col, header.Stretch)
+        else:
+            # For many columns, use content-based sizing
+            header = self.results_table.horizontalHeader()
+            header.setStretchLastSection(False)
+            for col in range(len(self.all_columns)):
+                header.setSectionResizeMode(col, header.ResizeToContents)
+    
+    def update_pagination_controls(self):
+        """Update pagination control states"""
+        self.page_label.setText(f"Página {self.current_page} de {self.total_pages} ({len(self.all_data)} registros)")
+        self.prev_btn.setEnabled(self.current_page > 1)
+        self.next_btn.setEnabled(self.current_page < self.total_pages)
+    
+    def previous_page(self):
+        """Go to previous page"""
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.display_current_page()
+            self.update_pagination_controls()
+    
+    def next_page(self):
+        """Go to next page"""
+        if self.current_page < self.total_pages:
+            self.current_page += 1
+            self.display_current_page()
+            self.update_pagination_controls()
+    
+    def change_rows_per_page(self, value):
+        """Change number of rows per page"""
+        self.rows_per_page = value
+        self.total_pages = max(1, (len(self.all_data) + self.rows_per_page - 1) // self.rows_per_page)
+        
+        # Adjust current page if necessary
+        if self.current_page > self.total_pages:
+            self.current_page = self.total_pages
+        
+        # Update display
+        if self.all_data:
+            if len(self.all_data) > self.rows_per_page:
+                self.pagination_widget.setVisible(True)
+                self.update_pagination_controls()
+            else:
+                self.pagination_widget.setVisible(False)
+            
+            self.display_current_page()
     
     def display_operation_result(self, success, message, result=None):
         """Display operation result (success/error with optional data)"""
@@ -329,6 +455,14 @@ class ResultsDisplay(QWidget):
         self.results_table.setRowCount(0)
         self.results_table.setColumnCount(0)
         self.toggle_btn.setVisible(False)
+        self.pagination_widget.setVisible(False)
+        
+        # Clear pagination data
+        self.all_data = []
+        self.all_columns = []
+        self.current_page = 1
+        self.total_pages = 1
+        
         self.current_mode = "text"
         self.results_text.setVisible(True)
         self.results_table.setVisible(False)

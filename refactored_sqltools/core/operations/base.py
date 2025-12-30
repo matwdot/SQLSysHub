@@ -61,6 +61,18 @@ class BaseOperation(ABC):
         """
         pass
     
+    def get_check_sql(self) -> Optional[str]:
+        """
+        Generate SQL query to check current state before operation.
+        
+        This method can be overridden by subclasses to provide
+        a verification query that shows the current state.
+        
+        Returns:
+            Optional[str]: SQL query string for verification, or None
+        """
+        return None
+    
     def validate_params(self, **params) -> bool:
         """
         Validate operation parameters.

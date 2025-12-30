@@ -251,9 +251,9 @@ class TestOriginalFunctionalityEquivalence:
             "Apagar Certificado", 
             "Corrigir Erro de Equipamento",
             "Limpar Tabelas do Fisco",
-            "Consultar Transações",
-            "Consultar Proprio",
-            "Consultar NCM Inexistente"
+            "Consultar NCM Inexistente",
+            "Ver NCMs a Vencer",
+            "Buscar Produto por Código"
         }
         
         # Verify all expected operations are present

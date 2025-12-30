@@ -51,7 +51,7 @@ class TestDatabaseDriverBase:
         """Test that mock driver initializes correctly."""
         driver = MockDatabaseDriver()
         assert not driver.is_connected()
-        assert driver.get_connection() is None
+        assert driver._connection is None
     
     def test_mock_driver_connection_cycle(self):
         """Test connection and disconnection cycle."""

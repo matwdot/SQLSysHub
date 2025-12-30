@@ -1,26 +1,31 @@
 """
 Operation Selector Component
 
-Extracts operation selection logic from original code.
-Implements operation description display.
-Adds date range inputs for NCM queries.
+Refactored to use the OperationRegistry from the core layer instead of
+hardcoded operations. This maintains proper separation of concerns by
+keeping business logic in the core layer and UI logic in the UI layer.
 """
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QComboBox, 
-                            QGroupBox, QDateEdit)
-from PyQt5.QtCore import pyqtSignal, QDate
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, 
+                            QGroupBox, QCheckBox, QTreeWidget, QTreeWidgetItem)
+from PyQt5.QtCore import pyqtSignal, Qt
+
+from refactored_sqltools.core.operations.registry import operation_registry
 
 
 class OperationSelector(QWidget):
-    """Reusable operation selector component"""
+    """Reusable operation selector component that uses OperationRegistry"""
     
     # Signals
     operation_changed = pyqtSignal(str)  # operation_name
     sql_updated = pyqtSignal(str)  # sql_text
+    parameters_requested = pyqtSignal(str, dict)  # operation_name, parameters_config
+    execute_requested = pyqtSignal()  # request automatic execution
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.operations = {}
+        self.current_operation_name = None
+        self.current_parameters = {}  # Store current parameters for queries with variables
         self.setup_ui()
         self.setup_styles()
         self.load_operations()
@@ -33,40 +38,39 @@ class OperationSelector(QWidget):
         operation_group = QGroupBox("Selecione a Operação")
         operation_layout = QVBoxLayout(operation_group)
         
-        # Operation combo box
-        self.operation_combo = QComboBox()
-        self.operation_combo.currentTextChanged.connect(self.on_operation_changed)
-        operation_layout.addWidget(self.operation_combo)
+        # Filter checkboxes
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Filtrar por tipo:"))
+        
+        self.pdv_checkbox = QCheckBox("PDV")
+        self.pdv_checkbox.setChecked(False)
+        self.pdv_checkbox.stateChanged.connect(self.on_filter_changed)
+        filter_layout.addWidget(self.pdv_checkbox)
+        
+        self.server_checkbox = QCheckBox("Server")
+        self.server_checkbox.setChecked(True)
+        self.server_checkbox.stateChanged.connect(self.on_filter_changed)
+        filter_layout.addWidget(self.server_checkbox)
+        
+        self.ambos_checkbox = QCheckBox("Ambos")
+        self.ambos_checkbox.setChecked(False)
+        self.ambos_checkbox.stateChanged.connect(self.on_filter_changed)
+        filter_layout.addWidget(self.ambos_checkbox)
+        
+        filter_layout.addStretch()  # Push checkboxes to the left
+        operation_layout.addLayout(filter_layout)
+        
+        # Operation tree widget for listing
+        self.operation_tree = QTreeWidget()
+        self.operation_tree.setHeaderHidden(True)
+        self.operation_tree.itemClicked.connect(self.on_operation_changed)
+        operation_layout.addWidget(self.operation_tree)
         
         # Operation description
         self.operation_description = QLabel()
         self.operation_description.setWordWrap(True)
-        self.operation_description.setStyleSheet("color: #7f8c8d; padding: 10px; font-style: italic;")
+        self.operation_description.setStyleSheet("color: #7f8c8d; padding: 8px; font-style: italic; font-size: 11px;")
         operation_layout.addWidget(self.operation_description)
-        
-        # Date range fields for NCM queries
-        self.date_start_label = QLabel("Data Início:")
-        self.date_start_edit = QDateEdit()
-        self.date_start_edit.setCalendarPopup(True)
-        self.date_start_edit.setDate(QDate.currentDate().addDays(-30))
-        self.date_start_edit.dateChanged.connect(self.on_date_changed)
-        
-        self.date_end_label = QLabel("Data Fim:")
-        self.date_end_edit = QDateEdit()
-        self.date_end_edit.setCalendarPopup(True)
-        self.date_end_edit.setDate(QDate.currentDate())
-        self.date_end_edit.dateChanged.connect(self.on_date_changed)
-        
-        operation_layout.addWidget(self.date_start_label)
-        operation_layout.addWidget(self.date_start_edit)
-        operation_layout.addWidget(self.date_end_label)
-        operation_layout.addWidget(self.date_end_edit)
-        
-        # Initially hide date fields
-        self.date_start_label.setVisible(False)
-        self.date_start_edit.setVisible(False)
-        self.date_end_label.setVisible(False)
-        self.date_end_edit.setVisible(False)
         
         layout.addWidget(operation_group)
     
@@ -80,19 +84,68 @@ class OperationSelector(QWidget):
                 margin-top: 12px;
                 padding-top: 15px;
                 background-color: white;
+                font-size: 13px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 15px;
                 padding: 0 8px;
                 color: #34495e;
+                font-size: 13px;
             }
-            QComboBox, QDateEdit {
+            QCheckBox {
+                font-size: 12px;
+                color: #2c3e50;
+                spacing: 5px;
+            }
+            QCheckBox::indicator {
+                width: 16px;
+                height: 16px;
+                border: 2px solid #bdc3c7;
+                border-radius: 3px;
+                background-color: white;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #3498db;
+                border-color: #3498db;
+            }
+            QCheckBox::indicator:checked:hover {
+                background-color: #2980b9;
+                border-color: #2980b9;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #3498db;
+            }
+            QComboBox, QTreeWidget {
                 border: 1px solid #bdc3c7;
                 border-radius: 4px;
                 padding: 5px;
                 background-color: white;
                 color: #2c3e50;
+                font-size: 12px;
+            }
+            QTreeWidget::item {
+                padding: 4px;
+                border-bottom: 1px solid #ecf0f1;
+                font-size: 12px;
+            }
+            QTreeWidget::item:selected {
+                background-color: #3498db;
+                color: white;
+            }
+            QTreeWidget::item:hover {
+                background-color: #41aaf0;
+                color: white;
+            }
+            QTreeWidget::branch:has-children:!has-siblings:closed,
+            QTreeWidget::branch:closed:has-children:has-siblings {
+                border-image: none;
+                image: url(none);
+            }
+            QTreeWidget::branch:open:has-children:!has-siblings,
+            QTreeWidget::branch:open:has-children:has-siblings {
+                border-image: none;
+                image: url(none);
             }
             QComboBox::drop-down {
                 border: none;
@@ -102,167 +155,203 @@ class OperationSelector(QWidget):
                 color: #2c3e50;
                 selection-background-color: #3498db;
                 selection-color: white;
+                font-size: 12px;
             }
             QComboBox QAbstractItemView::item:hover {
                 background-color: #41aaf0;
             }
-            QComboBox:hover, QDateEdit:hover {
+            QComboBox:hover, QTreeWidget:hover {
                 border: 1px solid #3498db;
+            }
+            QLabel {
+                font-size: 12px;
             }
         """)
     
-    def load_operations(self):
-        """Load available operations"""
-        self.operations = {
-            "Cancelar Cupom": {
-                "description": "Cancela todos os cupons (STACUP e STACUPVRF = 'F')",
-                "check_sql": "SELECT STACUP, STACUPVRF FROM CAIXA",
-                "execute_sql": "UPDATE CAIXA SET STACUP='F', STACUPVRF='F'"
-            },
-            "Apagar Certificado": {
-                "description": "Remove certificado digital do sistema",
-                "execute_sql": """UPDATE PROPRIO
-SET PRPCERELE = NULL,
-    PRPPWDCER = NULL,
-    PRPNUMSERA3 = NULL"""
-            },
-            "Corrigir Erro de Equipamento": {
-                "description": "Remove número de série do caixa",
-                "execute_sql": "UPDATE CAIXA SET CXASERNUM = NULL"
-            },
-            "Limpar Tabelas do Fisco": {
-                "description": "Remove todos os dados das tabelas fiscais",
-                "execute_sql": """EXECUTE BLOCK AS BEGIN
-  DELETE FROM FISCO_PRODUTOAUX;
-  DELETE FROM FISCO_DOCUMENTOFISCAL;
-  DELETE FROM FISCO_CUPOMFISCAL;
-  DELETE FROM FISCO_INVENTARIO;
-  DELETE FROM FISCO_REDUCAO;
-  DELETE FROM FISCO_ITEMDOCUMENTOFISCAL;
-  DELETE FROM FISCO_ITEMCUPOMFISCAL;
-  DELETE FROM FISCO_PRODUTO;
-  DELETE FROM FISCO_ITEMINVENTARIO;
-END"""
-            },
-
-            "Consultar NCM Inexistente": {
-                "description": "Consulta transações com NCM inexistente no período",
-                "execute_sql": """SELECT 
-    TRNNFCENUM AS NOTA,
-    T.TRNDAT AS DATA, 
-    PROCOD AS PRODUTO,
-    T.CXANUM AS CAIXA,
-    ITVSEQ AS SEQ_ITEM,
-    ITVNCM AS NCM,
-    TRNMENSNFE AS ERRO
-FROM TRANSACAO_XMLNOTA tx 
-INNER JOIN TRANSACAO t  ON TX.TRNSEQ = T.TRNSEQ AND TX.TRNDAT = T.TRNDAT AND TX.CXANUM = T.CXANUM  
-INNER JOIN ITEVDA i ON TX.TRNSEQ = I.TRNSEQ AND TX.TRNDAT = I.TRNDAT AND TX.CXANUM = i.CXANUM  
-WHERE 
-TX.TRNDAT BETWEEN '{data_inicio}' AND '{data_fim}'
-AND TRNMENSNFE LIKE '%Rejeicao: Informado NCM inexistente%'
-AND CAST(ITVSEQ AS INTEGER) =
-CAST( SUBSTRING(TRNMENSNFE FROM POSITION('nItem:' IN TRNMENSNFE) + 6 FOR POSITION(']' IN TRNMENSNFE)- (POSITION('nItem:' IN TRNMENSNFE) + 6))AS INTEGER);"""
-            }
-        }
-        
-        # Populate combo box
-        self.operation_combo.clear()
-        self.operation_combo.addItems(list(self.operations.keys()))
-        
-        # Initialize with first operation
-        if self.operations:
-            self.on_operation_changed()
+    def on_filter_changed(self):
+        """Handle filter checkbox changes"""
+        self.load_operations()
     
-    def on_operation_changed(self):
+    def get_selected_types(self):
+        """Get list of selected operation types"""
+        selected_types = []
+        if self.pdv_checkbox.isChecked():
+            selected_types.append('PDV')
+        if self.server_checkbox.isChecked():
+            selected_types.append('Server')
+        if self.ambos_checkbox.isChecked():
+            selected_types.append('Ambos')
+        return selected_types
+    
+    def load_operations(self):
+        """Load available operations from OperationRegistry filtered by type"""
+        # Get selected operation types
+        selected_types = self.get_selected_types()
+        
+        # Get operations organized by sessions from the registry, filtered by type
+        operations_by_session = operation_registry.get_operations_by_type(selected_types)
+        
+        # Store current selection
+        current_selection = None
+        current_item = self.operation_tree.currentItem()
+        if current_item:
+            current_selection = current_item.data(0, Qt.UserRole)
+        
+        # Clear tree widget
+        self.operation_tree.clear()
+        
+        # Collect all operations from all sessions (without session names)
+        all_operations = []
+        for session_name, operations in operations_by_session.items():
+            for operation_name in operations.keys():
+                all_operations.append(operation_name)
+        
+        # Sort operations alphabetically
+        all_operations.sort()
+        
+        # Add operations directly to tree (no session grouping)
+        for operation_name in all_operations:
+            operation_item = QTreeWidgetItem(self.operation_tree)
+            operation_item.setText(0, operation_name)
+            operation_item.setData(0, Qt.UserRole, operation_name)
+        
+        # Try to restore previous selection
+        if current_selection and current_selection in all_operations:
+            self.set_operation(current_selection)
+        else:
+            # Select first operation if available
+            if all_operations:
+                first_item = self.operation_tree.topLevelItem(0)
+                if first_item:
+                    self.operation_tree.setCurrentItem(first_item)
+                    self.on_operation_changed(first_item, 0)
+    
+    def on_operation_changed(self, item=None, column=None):
         """Handle operation selection change"""
-        operation_name = self.operation_combo.currentText()
-        if not operation_name or operation_name not in self.operations:
+        if item is None:
+            item = self.operation_tree.currentItem()
+        
+        if not item:
+            return
+            
+        # Get operation name from item data
+        operation_name = item.data(0, Qt.UserRole)
+        
+        if not operation_name:
             return
         
-        operation = self.operations[operation_name]
-        
-        # Update description
-        self.operation_description.setText(operation["description"])
-        
-        # Show/hide date fields for NCM query
-        if operation_name == "Consultar NCM Inexistente":
-            self.date_start_label.setVisible(True)
-            self.date_start_edit.setVisible(True)
-            self.date_end_label.setVisible(True)
-            self.date_end_edit.setVisible(True)
-        else:
-            self.date_start_label.setVisible(False)
-            self.date_start_edit.setVisible(False)
-            self.date_end_label.setVisible(False)
-            self.date_end_edit.setVisible(False)
-        
-        # Update SQL
-        self.update_sql()
-        
-        # Emit signal
-        self.operation_changed.emit(operation_name)
-    
-    def on_date_changed(self):
-        """Handle date change for NCM queries"""
-        self.update_sql()
+        try:
+            # Get operation from registry
+            operation = operation_registry.get_operation(operation_name)
+            self.current_operation_name = operation_name
+            
+            # Update description
+            self.operation_description.setText(operation.description)
+            
+            # Check if operation has parameters
+            if operation_registry.has_parameters(operation_name):
+                # Get parameter configuration from registry
+                parameters_config = operation_registry.get_operation_parameters(operation_name)
+                # Emit signal to request parameters from parent
+                self.parameters_requested.emit(operation_name, parameters_config)
+            else:
+                # Clear any existing parameters
+                self.current_parameters = {}
+                # Update SQL immediately for operations without parameters
+                self.update_sql()
+            
+            # Emit signal
+            self.operation_changed.emit(operation_name)
+            
+        except KeyError:
+            # Operation not found in registry
+            self.operation_description.setText("Operação não encontrada no registry")
+            return
     
     def update_sql(self):
-        """Update and emit SQL text"""
-        operation_name = self.operation_combo.currentText()
-        if not operation_name or operation_name not in self.operations:
+        """Update and emit SQL text using the operation from registry"""
+        if not self.current_operation_name:
             return
         
-        operation = self.operations[operation_name]
-        sql = operation.get("execute_sql", "")
+        try:
+            operation = operation_registry.get_operation(self.current_operation_name)
+            
+            # Generate SQL using the operation
+            if self.current_parameters:
+                sql = operation.get_sql(**self.current_parameters)
+            else:
+                sql = operation.get_sql()
+            
+            # Add check SQL if available
+            check_sql = operation.get_check_sql()
+            if check_sql:
+                sql = f"-- Verificação:\n{check_sql}\n\n-- Execução:\n{sql}"
+            
+            self.sql_updated.emit(sql)
+            
+        except Exception as e:
+            # If there's an error generating SQL, emit empty string
+            self.sql_updated.emit(f"-- Erro ao gerar SQL: {str(e)}")
+    
+    def set_parameters(self, parameters):
+        """Set parameters collected from parameter dialog"""
+        self.current_parameters = parameters
+        self.update_sql()
         
-        # Add check SQL if available
-        if operation.get("check_sql"):
-            sql = f"-- Verificação:\n{operation['check_sql']}\n\n-- Execução:\n{sql}"
-        
-        # Format SQL for NCM query with dates
-        if operation_name == "Consultar NCM Inexistente":
-            data_inicio = self.date_start_edit.date().toString("yyyy-MM-dd")
-            data_fim = self.date_end_edit.date().toString("yyyy-MM-dd")
-            sql = operation["execute_sql"].format(data_inicio=data_inicio, data_fim=data_fim)
-        
-        self.sql_updated.emit(sql)
+        # Emit signal to request automatic execution
+        if parameters:  # Only if parameters were actually provided (not cancelled)
+            self.execute_requested.emit()
     
     def get_current_operation(self):
-        """Get current operation details"""
-        operation_name = self.operation_combo.currentText()
-        if not operation_name or operation_name not in self.operations:
+        """Get current operation details from registry"""
+        if not self.current_operation_name:
             return None
         
-        operation = self.operations[operation_name].copy()
-        operation['name'] = operation_name
-        
-        # Add formatted dates for NCM query
-        if operation_name == "Consultar NCM Inexistente":
-            operation['data_inicio'] = self.date_start_edit.date().toString("yyyy-MM-dd")
-            operation['data_fim'] = self.date_end_edit.date().toString("yyyy-MM-dd")
-        
-        return operation
+        try:
+            operation = operation_registry.get_operation(self.current_operation_name)
+            
+            # Return operation details
+            return {
+                'name': self.current_operation_name,
+                'description': operation.description,
+                'operation_instance': operation,
+                'parameters': self.current_parameters.copy()
+            }
+        except KeyError:
+            return None
     
     def get_formatted_sql(self):
-        """Get SQL formatted with current parameters"""
-        operation = self.get_current_operation()
-        if not operation:
+        """Get SQL formatted with current parameters using operation from registry"""
+        if not self.current_operation_name:
             return ""
         
-        sql = operation.get("execute_sql", "")
-        
-        # Format SQL for NCM query with dates
-        if operation['name'] == "Consultar NCM Inexistente":
-            sql = sql.format(
-                data_inicio=operation['data_inicio'],
-                data_fim=operation['data_fim']
-            )
-        
-        return sql
+        try:
+            operation = operation_registry.get_operation(self.current_operation_name)
+            
+            # Generate SQL using the operation
+            if self.current_parameters:
+                sql = operation.get_sql(**self.current_parameters)
+            else:
+                sql = operation.get_sql()
+            
+            return sql
+            
+        except Exception as e:
+            return f"-- Erro ao gerar SQL: {str(e)}"
     
     def set_operation(self, operation_name):
         """Set current operation by name"""
-        if operation_name in self.operations:
-            index = list(self.operations.keys()).index(operation_name)
-            self.operation_combo.setCurrentIndex(index)
+        try:
+            # Verify operation exists in registry
+            operation_registry.get_operation(operation_name)
+            
+            # Find the operation item in the tree
+            for i in range(self.operation_tree.topLevelItemCount()):
+                operation_item = self.operation_tree.topLevelItem(i)
+                if operation_item.data(0, Qt.UserRole) == operation_name:
+                    self.operation_tree.setCurrentItem(operation_item)
+                    self.on_operation_changed(operation_item, 0)
+                    return
+        except KeyError:
+            # Operation not found in registry
+            pass

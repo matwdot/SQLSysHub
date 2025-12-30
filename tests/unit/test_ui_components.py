@@ -70,15 +70,14 @@ class TestOperationSelector:
         selector = OperationSelector()
         assert selector is not None
         assert len(selector.operations) > 0
-        assert selector.operation_combo.count() > 0
+        assert selector.operation_tree.topLevelItemCount() > 0
     
     def test_operation_change(self, qapp):
         """Test operation change updates description"""
         selector = OperationSelector()
         
         # Set to a known operation
-        selector.operation_combo.setCurrentText("Cancelar Cupom")
-        selector.on_operation_changed()
+        selector.set_operation("Cancelar Cupom")
         
         description = selector.operation_description.text()
         assert "cupons" in description.lower()
@@ -89,8 +88,7 @@ class TestOperationSelector:
         selector.show()  # Show widget to make visibility tests work
         
         # Set to NCM query
-        selector.operation_combo.setCurrentText("Consultar NCM Inexistente")
-        selector.on_operation_changed()
+        selector.set_operation("Consultar NCM Inexistente")
         
         assert selector.date_start_label.isVisible()
         assert selector.date_end_label.isVisible()

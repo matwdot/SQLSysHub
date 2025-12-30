@@ -3,29 +3,29 @@ Database operations layer.
 """
 
 from .base import BaseOperation, OperationResult, ValidationError
-from .predefined import (
-    CancelarCupomOperation,
-    ApagarCertificadoOperation,
-    CorrigirErroEquipamentoOperation,
-    LimparTabelasFiscoOperation,
-    # ConsultarTransacoesOperation,  # Removida
-    # ConsultarProprioOperation,     # Removida
-    ConsultarNCMInexistenteOperation,
-    OperationRegistry,
-    operation_registry
-)
+from .registry import OperationRegistry, operation_registry
+
+# Import individual operations for direct access if needed
+from .individual.cancelar_cupom import CancelarCupomOperation
+from .individual.apagar_certificado import ApagarCertificadoOperation
+from .individual.corrigir_erro_equipamento import CorrigirErroEquipamentoOperation
+from .individual.limpar_tabelas_fisco import LimparTabelasFiscoOperation
+from .individual.consultar_ncm_inexistente import ConsultarNCMInexistenteOperation
+from .individual.ver_ncms_a_vencer import VerNCMsAVencerOperation
+from .individual.buscar_produto_codigo import BuscarProdutoCodigoOperation
 
 __all__ = [
     'BaseOperation', 
     'OperationResult', 
     'ValidationError',
+    'OperationRegistry',
+    'operation_registry',
+    # Individual operations
     'CancelarCupomOperation',
     'ApagarCertificadoOperation',
     'CorrigirErroEquipamentoOperation',
     'LimparTabelasFiscoOperation',
-    # 'ConsultarTransacoesOperation',  # Removida
-    # 'ConsultarProprioOperation',     # Removida
     'ConsultarNCMInexistenteOperation',
-    'OperationRegistry',
-    'operation_registry'
+    'VerNCMsAVencerOperation',
+    'BuscarProdutoCodigoOperation'
 ]

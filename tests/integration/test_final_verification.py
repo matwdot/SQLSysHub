@@ -76,9 +76,9 @@ class TestFinalVerification:
             "Apagar Certificado", 
             "Corrigir Erro de Equipamento",
             "Limpar Tabelas do Fisco",
-            "Consultar Transações",
-            "Consultar Proprio",
-            "Consultar NCM Inexistente"
+            "Consultar NCM Inexistente",
+            "Ver NCMs a Vencer",
+            "Buscar Produto por Código"
         }
         
         missing_operations = key_operations - operation_names

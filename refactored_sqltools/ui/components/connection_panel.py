@@ -39,56 +39,84 @@ class ConnectionPanel(QWidget):
         connection_group.setStyleSheet("QGroupBox::title { padding-left: 20px; }")
         connection_layout = QGridLayout(connection_group)
         
+        # Set minimum column widths to prevent text truncation
+        connection_layout.setColumnMinimumWidth(0, 80)  # Label column
+        connection_layout.setColumnMinimumWidth(1, 180)  # Input column
+        connection_layout.setColumnStretch(1, 1)  # Allow input column to expand
+        
         # Database type
         connection_layout.addWidget(QLabel("Tipo:"), 0, 0)
         self.db_type_combo = QComboBox()
         self.db_type_combo.addItems(["Firebird", "SQL Server"])
         self.db_type_combo.currentTextChanged.connect(self.on_db_type_change)
+        self.db_type_combo.setMinimumWidth(150)
         connection_layout.addWidget(self.db_type_combo, 0, 1)
         
         # Host
         connection_layout.addWidget(QLabel("Host:"), 1, 0)
         self.host_entry = QLineEdit("localhost")
+        self.host_entry.setMinimumWidth(150)
         connection_layout.addWidget(self.host_entry, 1, 1)
         
         # Port
         connection_layout.addWidget(QLabel("Porta:"), 2, 0)
         self.port_entry = QLineEdit("3050")
+        self.port_entry.setMinimumWidth(150)
         connection_layout.addWidget(self.port_entry, 2, 1)
         
         # Username
         connection_layout.addWidget(QLabel("Usuário:"), 3, 0)
         self.username_entry = QLineEdit("SYSDBA")
+        self.username_entry.setMinimumWidth(150)
         connection_layout.addWidget(self.username_entry, 3, 1)
         
         # Password
         connection_layout.addWidget(QLabel("Senha:"), 4, 0)
         self.password_entry = QLineEdit("masterkey")
         self.password_entry.setEchoMode(QLineEdit.Password)
+        self.password_entry.setMinimumWidth(150)
         connection_layout.addWidget(self.password_entry, 4, 1)
         
         # Database
         connection_layout.addWidget(QLabel("Database:"), 5, 0)
         self.database_combo = QComboBox()
         self.database_combo.currentTextChanged.connect(self.on_database_option_changed)
+        self.database_combo.setMinimumWidth(150)
         connection_layout.addWidget(self.database_combo, 5, 1)
         
         # Custom database field
         self.custom_db_entry = QLineEdit()
         self.custom_db_entry.setVisible(False)
+        self.custom_db_entry.setMinimumWidth(150)
         connection_layout.addWidget(self.custom_db_entry, 6, 0, 1, 2)
         
         # Connect button
         self.connect_btn = QPushButton("Conectar")
         self.connect_btn.clicked.connect(self.handle_connection)
+        self.connect_btn.setMinimumHeight(35)
         connection_layout.addWidget(self.connect_btn, 7, 0, 1, 2)
+        
+        # Add some spacing before status label
+        spacer_label = QLabel()
+        spacer_label.setMinimumHeight(10)  # 10px spacing
+        connection_layout.addWidget(spacer_label, 8, 0, 1, 2)
         
         # Status label
         self.status_label = QLabel()
         self.update_status(False, "Desconectado")
-        connection_layout.addWidget(self.status_label, 8, 0, 1, 2)
+        self.status_label.setMinimumHeight(25)
+        self.status_label.setWordWrap(True)  # Allow text wrapping if needed
+        connection_layout.addWidget(self.status_label, 9, 0, 1, 2)
+        
+        # Set minimum size for the connection group
+        connection_group.setMinimumWidth(280)
+        connection_group.setMinimumHeight(300)
         
         layout.addWidget(connection_group)
+        
+        # Set minimum size for the entire panel
+        self.setMinimumWidth(300)
+        self.setMinimumHeight(320)
     
     def setup_styles(self):
         """Setup component styles"""

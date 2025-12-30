@@ -98,15 +98,6 @@ class DatabaseDriver(ABC):
         """
         return self._connection_params.copy()
     
-    def get_connection(self):
-        """
-        Get the current database connection object.
-        
-        Returns:
-            Connection object or None if not connected
-        """
-        return self._connection
-    
     def _validate_connection(self) -> None:
         """
         Validate that the driver is connected before executing operations.

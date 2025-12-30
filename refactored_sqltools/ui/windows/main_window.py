@@ -19,6 +19,7 @@ from refactored_sqltools.ui.components.operation_selector import OperationSelect
 from refactored_sqltools.ui.components.results_display import ResultsDisplay
 from refactored_sqltools.ui.components.progress_indicator import ProgressIndicator
 from refactored_sqltools.ui.components.sql_editor import SQLEditorWidget
+from refactored_sqltools.ui.windows.parameter_dialog import show_parameter_dialog
 from refactored_sqltools.core.database.manager import DatabaseManager
 from refactored_sqltools.core.workers.database_worker import DatabaseWorker, DatabaseWorkerFactory
 
@@ -55,8 +56,8 @@ class MainWindow(QMainWindow):
         except:
             pass  # Icon file may not exist in all environments
         
-        self.setGeometry(100, 100, 1000, 650)
-        self.setMinimumSize(900, 600)
+        self.setGeometry(100, 100, 1100, 700)
+        self.setMinimumSize(1000, 650)  # Increased minimum size to prevent layout issues
         
         # Setup status bar
         self.status_bar = QStatusBar()
@@ -70,6 +71,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         
         main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(5, 5, 5, 5)  # Add some margins
         
         # Create splitter for sidebar and main area
         splitter = QSplitter(Qt.Horizontal)
@@ -82,19 +84,36 @@ class MainWindow(QMainWindow):
         # Add to splitter
         splitter.addWidget(self.sidebar_widget)
         splitter.addWidget(self.main_widget)
-        splitter.setSizes([320, 680])
+        
+        # Set minimum sizes to prevent content truncation
+        self.sidebar_widget.setMinimumWidth(300)
+        self.main_widget.setMinimumWidth(400)
+        
+        # Set initial sizes with proper proportions
+        splitter.setSizes([350, 650])
+        
+        # Set stretch factors (sidebar less stretchable than main area)
+        splitter.setStretchFactor(0, 0)  # Sidebar doesn't stretch much
+        splitter.setStretchFactor(1, 1)  # Main area gets most of the stretch
     
     def create_sidebar(self):
         """Create the sidebar with connection and operation controls"""
         self.sidebar_widget = QWidget()
+        self.sidebar_widget.setMinimumWidth(300)  # Ensure minimum width
         sidebar_layout = QVBoxLayout(self.sidebar_widget)
+        sidebar_layout.setContentsMargins(5, 5, 5, 5)  # Add margins
+        sidebar_layout.setSpacing(10)  # Add spacing between components
         
         # Connection panel
         self.connection_panel = ConnectionPanel()
         sidebar_layout.addWidget(self.connection_panel)
         
+        # Add spacing between connection and operation sections
+        sidebar_layout.addSpacing(15)  # 15px spacing
+        
         # Operation selector
         self.operation_selector = OperationSelector()
+        self.operation_selector.setMinimumHeight(200)  # Ensure minimum height
         sidebar_layout.addWidget(self.operation_selector)
         
         # Execute button
@@ -289,6 +308,8 @@ class MainWindow(QMainWindow):
         
         # Operation selector signals
         self.operation_selector.sql_updated.connect(self.update_sql_display)
+        self.operation_selector.parameters_requested.connect(self.handle_parameters_request)
+        self.operation_selector.execute_requested.connect(self.auto_execute_operation)
         
         # Results display signals
         self.results_display.cell_copied.connect(self.on_cell_copied)
@@ -323,6 +344,35 @@ class MainWindow(QMainWindow):
     def on_connection_changed(self, connected):
         """Handle connection state change"""
         self.execute_btn.setEnabled(connected)
+    
+    def handle_parameters_request(self, operation_name, parameters_config):
+        """Handle request for operation parameters"""
+        # Show parameter dialog
+        parameters = show_parameter_dialog(operation_name, parameters_config, self)
+        
+        if parameters:
+            # Set parameters in operation selector
+            self.operation_selector.set_parameters(parameters)
+        else:
+            # User cancelled - clear any existing parameters
+            self.operation_selector.set_parameters({})
+    
+    def auto_execute_operation(self):
+        """Automatically execute operation after parameters are confirmed"""
+        # Check if we're connected to database
+        if not self.db_manager.is_connected():
+            # Show connection required message
+            self.show_error_status("Conecte-se ao banco de dados primeiro", 5000)
+            return
+        
+        # Check if we have a valid operation
+        operation = self.operation_selector.get_current_operation()
+        if not operation:
+            self.show_error_status("Nenhuma operação selecionada", 3000)
+            return
+        
+        # Execute the operation automatically
+        self.execute_operation()
     
     def on_connection_finished(self, success, message, result):
         """Handle connection operation completion"""
