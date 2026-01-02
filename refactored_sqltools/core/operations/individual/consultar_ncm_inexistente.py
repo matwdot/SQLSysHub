@@ -13,7 +13,7 @@ class ConsultarNCMInexistenteOperation(BaseOperation):
     def __init__(self):
         super().__init__(
             name="Consultar NCM Inexistente",
-            description="Consulta transações com NCM inexistente no período"
+            description='Consulta transações com NCM inexistente no período.<br><br>📎 <a href="https://portalunico.siscomex.gov.br/classif/api/publico/nomenclatura/download/json">Link para consulta de NCMs</a>'
         )
     
     def validate_params(self, **params) -> bool:

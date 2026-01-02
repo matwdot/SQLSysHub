@@ -2,8 +2,9 @@
 Database operations layer.
 """
 
-from .base import BaseOperation, OperationResult, ValidationError
+from .base import BaseOperation, OperationResult
 from .registry import OperationRegistry, operation_registry
+from ...utils.exceptions import ValidationError
 
 # Import individual operations for direct access if needed
 from .individual.cancelar_cupom import CancelarCupomOperation

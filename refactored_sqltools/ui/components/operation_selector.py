@@ -4,13 +4,23 @@ Operation Selector Component
 Refactored to use the OperationRegistry from the core layer instead of
 hardcoded operations. This maintains proper separation of concerns by
 keeping business logic in the core layer and UI logic in the UI layer.
+
+Parâmetros são exibidos inline na mesma sessão, sem popup.
+Utiliza componentes aprimorados para entrada de parâmetros.
 """
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, 
-                            QGroupBox, QCheckBox, QTreeWidget, QTreeWidgetItem)
-from PyQt5.QtCore import pyqtSignal, Qt
+                            QGroupBox, QCheckBox, QTreeWidget, QTreeWidgetItem,
+                            QLineEdit, QDateEdit, QFormLayout, QPushButton, QFrame,
+                            QSizePolicy, QSpinBox)
+from PyQt5.QtCore import pyqtSignal, Qt, QDate
+from PyQt5.QtGui import QFont
 
 from refactored_sqltools.core.operations.registry import operation_registry
+from refactored_sqltools.ui.components.enhanced_parameters import (
+    ParameterWidgetFactory, StyledDateEdit, EnhancedSpinBox, 
+    EnhancedLineEdit, EnhancedComboBox, NumberWithSlider
+)
 
 
 class OperationSelector(QWidget):
@@ -19,13 +29,14 @@ class OperationSelector(QWidget):
     # Signals
     operation_changed = pyqtSignal(str)  # operation_name
     sql_updated = pyqtSignal(str)  # sql_text
-    parameters_requested = pyqtSignal(str, dict)  # operation_name, parameters_config
-    execute_requested = pyqtSignal()  # request automatic execution
+    parameters_requested = pyqtSignal(str, dict)  # operation_name, parameters_config (kept for compatibility)
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.current_operation_name = None
         self.current_parameters = {}  # Store current parameters for queries with variables
+        self.parameter_widgets = {}  # Store parameter input widgets
+        self.parameters_config = {}  # Store current parameters configuration
         self.setup_ui()
         self.setup_styles()
         self.load_operations()
@@ -33,14 +44,23 @@ class OperationSelector(QWidget):
     def setup_ui(self):
         """Setup the operation selector UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
         # Operation selection group
         operation_group = QGroupBox("Selecione a Operação")
+        operation_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         operation_layout = QVBoxLayout(operation_group)
+        operation_layout.setContentsMargins(8, 12, 8, 8)
+        operation_layout.setSpacing(4)
         
-        # Filter checkboxes
+        # Filter checkboxes - more compact
         filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("Filtrar por tipo:"))
+        filter_layout.setSpacing(2)
+        
+        filter_label = QLabel("Filtro:")
+        filter_label.setStyleSheet("font-size: 10px; color: #7f8c8d;")
+        filter_layout.addWidget(filter_label)
         
         self.pdv_checkbox = QCheckBox("PDV")
         self.pdv_checkbox.setChecked(False)
@@ -57,20 +77,62 @@ class OperationSelector(QWidget):
         self.ambos_checkbox.stateChanged.connect(self.on_filter_changed)
         filter_layout.addWidget(self.ambos_checkbox)
         
-        filter_layout.addStretch()  # Push checkboxes to the left
+        filter_layout.addStretch()
         operation_layout.addLayout(filter_layout)
         
         # Operation tree widget for listing
         self.operation_tree = QTreeWidget()
         self.operation_tree.setHeaderHidden(True)
+        self.operation_tree.setMinimumHeight(60)
+        self.operation_tree.setMaximumHeight(120)
+        self.operation_tree.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.operation_tree.itemClicked.connect(self.on_operation_changed)
         operation_layout.addWidget(self.operation_tree)
         
         # Operation description
         self.operation_description = QLabel()
         self.operation_description.setWordWrap(True)
-        self.operation_description.setStyleSheet("color: #7f8c8d; padding: 8px; font-style: italic; font-size: 11px;")
+        self.operation_description.setMinimumHeight(30)
+        self.operation_description.setMaximumHeight(80)
+        self.operation_description.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.operation_description.setStyleSheet("color: #7f8c8d; padding: 4px; font-style: italic; font-size: 10px;")
+        self.operation_description.setOpenExternalLinks(True)  # Permite abrir links no navegador
+        self.operation_description.setTextFormat(Qt.RichText)  # Suporta HTML
         operation_layout.addWidget(self.operation_description)
+        
+        # Parameters section (inline, no popup)
+        self.parameters_frame = QFrame()
+        self.parameters_frame.setFrameShape(QFrame.StyledPanel)
+        self.parameters_frame.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        self.parameters_frame.setStyleSheet("""
+            QFrame {
+                background-color: #f8f9fa;
+                border: 1px solid #bdc3c7;
+                border-radius: 4px;
+                margin-top: 2px;
+            }
+        """)
+        self.parameters_layout = QVBoxLayout(self.parameters_frame)
+        self.parameters_layout.setContentsMargins(6, 6, 6, 6)
+        self.parameters_layout.setSpacing(4)
+        
+        # Parameters title
+        self.parameters_title = QLabel("Parâmetros:")
+        self.parameters_title.setStyleSheet("font-weight: bold; color: #34495e; font-size: 10px; border: none; background: transparent;")
+        self.parameters_layout.addWidget(self.parameters_title)
+        
+        # Form layout for parameter inputs
+        self.parameters_form = QFormLayout()
+        self.parameters_form.setSpacing(4)
+        self.parameters_form.setContentsMargins(0, 0, 0, 0)
+        self.parameters_layout.addLayout(self.parameters_form)
+        
+        # Initially hide parameters section
+        self.parameters_frame.setVisible(False)
+        operation_layout.addWidget(self.parameters_frame)
+        
+        # Add stretch to push everything to the top
+        operation_layout.addStretch()
         
         layout.addWidget(operation_group)
     
@@ -79,92 +141,62 @@ class OperationSelector(QWidget):
         self.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                border: 2px solid #bdc3c7;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 15px;
+                font-size: 11px;
+                border: 1px solid #bdc3c7;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 12px;
                 background-color: white;
-                font-size: 13px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
+                left: 10px;
+                padding: 0 6px;
                 color: #34495e;
-                font-size: 13px;
             }
             QCheckBox {
-                font-size: 12px;
+                font-size: 10px;
                 color: #2c3e50;
-                spacing: 5px;
+                spacing: 3px;
             }
             QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #bdc3c7;
-                border-radius: 3px;
+                width: 13px;
+                height: 13px;
+                border: 1px solid #bdc3c7;
+                border-radius: 2px;
                 background-color: white;
             }
             QCheckBox::indicator:checked {
                 background-color: #3498db;
                 border-color: #3498db;
             }
-            QCheckBox::indicator:checked:hover {
-                background-color: #2980b9;
-                border-color: #2980b9;
-            }
             QCheckBox::indicator:hover {
                 border-color: #3498db;
             }
-            QComboBox, QTreeWidget {
+            QTreeWidget {
                 border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                padding: 5px;
+                border-radius: 3px;
+                padding: 2px;
                 background-color: white;
                 color: #2c3e50;
-                font-size: 12px;
+                font-size: 11px;
             }
             QTreeWidget::item {
-                padding: 4px;
+                padding: 3px 2px;
                 border-bottom: 1px solid #ecf0f1;
-                font-size: 12px;
             }
             QTreeWidget::item:selected {
                 background-color: #3498db;
                 color: white;
             }
             QTreeWidget::item:hover {
-                background-color: #41aaf0;
-                color: white;
+                background-color: #ebf5fb;
             }
-            QTreeWidget::branch:has-children:!has-siblings:closed,
-            QTreeWidget::branch:closed:has-children:has-siblings {
-                border-image: none;
-                image: url(none);
-            }
-            QTreeWidget::branch:open:has-children:!has-siblings,
-            QTreeWidget::branch:open:has-children:has-siblings {
-                border-image: none;
-                image: url(none);
-            }
-            QComboBox::drop-down {
-                border: none;
-            }
-            QComboBox QAbstractItemView {
-                background-color: white;
-                color: #2c3e50;
-                selection-background-color: #3498db;
-                selection-color: white;
-                font-size: 12px;
-            }
-            QComboBox QAbstractItemView::item:hover {
-                background-color: #41aaf0;
-            }
-            QComboBox:hover, QTreeWidget:hover {
+            QTreeWidget:hover {
                 border: 1px solid #3498db;
             }
             QLabel {
-                font-size: 12px;
+                font-size: 10px;
             }
         """)
     
@@ -251,12 +283,14 @@ class OperationSelector(QWidget):
             # Check if operation has parameters
             if operation_registry.has_parameters(operation_name):
                 # Get parameter configuration from registry
-                parameters_config = operation_registry.get_operation_parameters(operation_name)
-                # Emit signal to request parameters from parent
-                self.parameters_requested.emit(operation_name, parameters_config)
+                self.parameters_config = operation_registry.get_operation_parameters(operation_name)
+                # Show inline parameters
+                self.show_inline_parameters(operation_name, self.parameters_config)
             else:
-                # Clear any existing parameters
+                # Clear any existing parameters and hide section
                 self.current_parameters = {}
+                self.parameters_config = {}
+                self.hide_inline_parameters()
                 # Update SQL immediately for operations without parameters
                 self.update_sql()
             
@@ -266,7 +300,111 @@ class OperationSelector(QWidget):
         except KeyError:
             # Operation not found in registry
             self.operation_description.setText("Operação não encontrada no registry")
+            self.hide_inline_parameters()
             return
+    
+    def show_inline_parameters(self, operation_name, parameters_config):
+        """Show parameter inputs inline (no popup) using enhanced widgets"""
+        # Clear existing parameter widgets
+        self.clear_parameter_widgets()
+        
+        # Create parameter input widgets based on parameter types using factory
+        for param_name, param_config in parameters_config.items():
+            param_type = param_config.get('type', 'text')
+            param_label = param_config.get('label', param_name)
+            
+            # Label compacto
+            label = QLabel(f"{param_label}:")
+            label.setStyleSheet("font-weight: bold; color: #2c3e50; font-size: 10px; border: none; background: transparent;")
+            label.setToolTip(param_config.get('description', ''))
+            
+            # Criar widget usando a factory
+            widget = ParameterWidgetFactory.create_widget(param_config)
+            
+            # Armazenar widget e tipo para coleta posterior
+            self.parameter_widgets[param_name] = {
+                'widget': widget,
+                'type': param_type,
+                'config': param_config
+            }
+            
+            self.parameters_form.addRow(label, widget)
+        
+        # Show parameters section
+        self.parameters_frame.setVisible(True)
+        
+        # Set focus to first parameter widget
+        if self.parameter_widgets:
+            first_widget_info = list(self.parameter_widgets.values())[0]
+            first_widget = first_widget_info['widget']
+            if hasattr(first_widget, 'setFocus'):
+                first_widget.setFocus()
+    
+    def hide_inline_parameters(self):
+        """Hide the inline parameters section"""
+        self.clear_parameter_widgets()
+        self.parameters_frame.setVisible(False)
+    
+    def clear_parameter_widgets(self):
+        """Clear all parameter input widgets"""
+        # Remove all rows from form layout
+        while self.parameters_form.count():
+            item = self.parameters_form.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        self.parameter_widgets = {}
+    
+    def collect_parameters(self):
+        """Collect parameters from inline widgets using factory"""
+        parameters = {}
+        
+        for param_name, widget_info in self.parameter_widgets.items():
+            widget = widget_info['widget']
+            param_type = widget_info['type']
+            param_config = widget_info['config']
+            
+            # Usar factory para obter valor
+            value = ParameterWidgetFactory.get_value(widget, param_type)
+            
+            # Validação para campos obrigatórios
+            if param_config.get('required') and not value:
+                from PyQt5.QtWidgets import QMessageBox
+                param_label = param_config.get('label', param_name)
+                msg = QMessageBox(self)
+                msg.setWindowTitle("Campo Obrigatório")
+                msg.setText(f"O campo '{param_label}' é obrigatório.")
+                msg.setIcon(QMessageBox.Warning)
+                msg.exec_()
+                if hasattr(widget, 'setFocus'):
+                    widget.setFocus()
+                return None
+            
+            # Validação para campos numéricos
+            if param_type in ('number', 'number_slider'):
+                if param_config.get('min') is not None and value < param_config['min']:
+                    from PyQt5.QtWidgets import QMessageBox
+                    param_label = param_config.get('label', param_name)
+                    msg = QMessageBox(self)
+                    msg.setWindowTitle("Erro de Validação")
+                    msg.setText(f"O campo '{param_label}' deve ser maior ou igual a {param_config['min']}.")
+                    msg.setIcon(QMessageBox.Warning)
+                    msg.exec_()
+                    if hasattr(widget, 'setFocus'):
+                        widget.setFocus()
+                    return None
+            
+            # Converter para string se necessário (para compatibilidade com SQL)
+            if param_type in ('number', 'number_slider', 'decimal'):
+                parameters[param_name] = str(value)
+            elif param_type == 'date_range':
+                # Expandir date_range em dois parâmetros
+                parameters['data_inicio'] = value['start']
+                parameters['data_fim'] = value['end']
+            else:
+                parameters[param_name] = value
+        
+        return parameters
     
     def update_sql(self):
         """Update and emit SQL text using the operation from registry"""
@@ -297,10 +435,6 @@ class OperationSelector(QWidget):
         """Set parameters collected from parameter dialog"""
         self.current_parameters = parameters
         self.update_sql()
-        
-        # Emit signal to request automatic execution
-        if parameters:  # Only if parameters were actually provided (not cancelled)
-            self.execute_requested.emit()
     
     def get_current_operation(self):
         """Get current operation details from registry"""

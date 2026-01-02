@@ -40,7 +40,7 @@ class TestConnectionValidation:
     
     def test_firebird_connection_validation_missing_file(self):
         """Test Firebird connection validation with missing file."""
-        with pytest.raises(ValidationError, match="Database file not found"):
+        with pytest.raises(ValidationError, match="Arquivo de banco não encontrado"):
             validate_connection_params(
                 'firebird',
                 database='/nonexistent/path/test.fdb',
@@ -49,7 +49,7 @@ class TestConnectionValidation:
     
     def test_firebird_connection_validation_missing_database(self):
         """Test Firebird connection validation with missing database parameter."""
-        with pytest.raises(ValidationError, match="Missing required parameters"):
+        with pytest.raises(ValidationError, match="Parâmetros obrigatórios ausentes"):
             validate_connection_params('firebird', host='localhost')
     
     def test_sqlserver_connection_validation_success(self):
@@ -65,12 +65,12 @@ class TestConnectionValidation:
     
     def test_sqlserver_connection_validation_missing_database(self):
         """Test SQL Server connection validation with missing database."""
-        with pytest.raises(ValidationError, match="Missing required parameters"):
+        with pytest.raises(ValidationError, match="Parâmetros obrigatórios ausentes"):
             validate_connection_params('sqlserver', host='localhost')
     
     def test_unsupported_database_type(self):
         """Test validation with unsupported database type."""
-        with pytest.raises(ValidationError, match="Unsupported database type"):
+        with pytest.raises(ValidationError, match="Tipo de banco não suportado"):
             validate_connection_params('mysql', database='test')
 
 
@@ -90,12 +90,12 @@ class TestFirebirdPathValidation:
     
     def test_empty_path(self):
         """Test validation with empty path."""
-        with pytest.raises(ValidationError, match="Database path cannot be empty"):
+        with pytest.raises(ValidationError, match="Caminho do banco não pode estar vazio"):
             validate_firebird_database_path('', 'localhost')
     
     def test_nonexistent_file_local(self):
         """Test validation with nonexistent file for local connection."""
-        with pytest.raises(ValidationError, match="Database file not found"):
+        with pytest.raises(ValidationError, match="Arquivo de banco não encontrado"):
             validate_firebird_database_path('/nonexistent/test.fdb', 'localhost')
     
     def test_remote_path_validation(self):
@@ -106,7 +106,7 @@ class TestFirebirdPathValidation:
     
     def test_invalid_characters_remote(self):
         """Test validation with invalid characters in remote path."""
-        with pytest.raises(ValidationError, match="contains invalid characters"):
+        with pytest.raises(ValidationError, match="contém caracteres inválidos"):
             validate_firebird_database_path('/path/with<invalid>chars.fdb', 'remote-server')
 
 
@@ -125,27 +125,27 @@ class TestDateRangeValidation:
     
     def test_invalid_date_order(self):
         """Test validation with start date after end date."""
-        with pytest.raises(ValidationError, match="Start date must be before"):
+        with pytest.raises(ValidationError, match="Data de início deve ser anterior"):
             validate_date_range('2024-12-31', '2024-01-01')
     
     def test_invalid_date_format(self):
         """Test validation with invalid date format."""
-        with pytest.raises(ValidationError, match="Invalid date format"):
+        with pytest.raises(ValidationError, match="Formato de data inválido"):
             validate_date_range('2024/01/01', '2024/12/31')
     
     def test_empty_dates(self):
         """Test validation with empty dates."""
-        with pytest.raises(ValidationError, match="Both start and end dates are required"):
+        with pytest.raises(ValidationError, match="Datas de início e fim são obrigatórias"):
             validate_date_range('', '2024-12-31')
     
     def test_dates_too_old(self):
         """Test validation with dates too far in the past."""
-        with pytest.raises(ValidationError, match="cannot be before"):
+        with pytest.raises(ValidationError, match="não podem ser anteriores"):
             validate_date_range('1999-01-01', '1999-12-31')
     
     def test_dates_too_future(self):
         """Test validation with dates too far in the future."""
-        with pytest.raises(ValidationError, match="cannot be after"):
+        with pytest.raises(ValidationError, match="não podem ser posteriores"):
             validate_date_range('2030-01-01', '2030-12-31')
 
 
@@ -164,20 +164,20 @@ class TestSQLQueryValidation:
     
     def test_empty_query(self):
         """Test validation with empty query."""
-        with pytest.raises(ValidationError, match="SQL query cannot be empty"):
+        with pytest.raises(ValidationError, match="Query SQL não pode estar vazia"):
             validate_sql_query('')
     
     def test_dangerous_drop_query(self):
         """Test validation rejects dangerous DROP query."""
-        with pytest.raises(ValidationError, match="potentially dangerous pattern"):
+        with pytest.raises(ValidationError, match="padrão potencialmente perigoso"):
             validate_sql_query('SELECT * FROM users; DROP TABLE users;')
     
     def test_dangerous_delete_query(self):
         """Test validation rejects dangerous DELETE query."""
-        with pytest.raises(ValidationError, match="potentially dangerous pattern"):
+        with pytest.raises(ValidationError, match="padrão potencialmente perigoso"):
             validate_sql_query('SELECT * FROM users; DELETE FROM users;')
     
     def test_sql_comment_injection(self):
         """Test validation rejects SQL comment injection."""
-        with pytest.raises(ValidationError, match="potentially dangerous pattern"):
+        with pytest.raises(ValidationError, match="padrão potencialmente perigoso"):
             validate_sql_query('SELECT * FROM users WHERE id = 1 -- AND password = "secret"')

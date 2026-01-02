@@ -3,7 +3,8 @@ Unit tests for BaseOperation class.
 """
 
 import pytest
-from refactored_sqltools.core.operations.base import BaseOperation, OperationResult, ValidationError
+from refactored_sqltools.core.operations.base import BaseOperation, OperationResult
+from refactored_sqltools.utils.exceptions import ValidationError
 
 
 class MockOperation(BaseOperation):

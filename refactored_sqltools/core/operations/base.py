@@ -10,6 +10,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from datetime import datetime
 
+from ...utils.exceptions import ValidationError
+
 
 @dataclass
 class OperationResult:
@@ -19,11 +21,6 @@ class OperationResult:
     data: Optional[Any] = None
     rows_affected: Optional[int] = None
     columns: Optional[List[str]] = None
-
-
-class ValidationError(Exception):
-    """Raised when operation parameter validation fails."""
-    pass
 
 
 class BaseOperation(ABC):

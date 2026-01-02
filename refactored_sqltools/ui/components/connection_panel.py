@@ -8,9 +8,12 @@ Provides database type selection and parameter input.
 
 import os
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QLabel, 
-                            QLineEdit, QPushButton, QComboBox, QGroupBox)
+                            QLineEdit, QPushButton, QComboBox, QGroupBox,
+                            QSizePolicy)
 from PyQt5.QtCore import pyqtSignal
 import qtawesome as qta
+
+from refactored_sqltools.config import get_config_manager
 
 
 class ConnectionPanel(QWidget):
@@ -24,115 +27,125 @@ class ConnectionPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.is_connected = False
+        self.config = get_config_manager()
         self.setup_ui()
         self.setup_styles()
         
-        # Initialize default values
-        self.on_db_type_change()
+        # Load saved configuration
+        self._load_saved_config()
     
     def setup_ui(self):
         """Setup the connection panel UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
         # Connection group
         connection_group = QGroupBox("Conexão ao Banco")
-        connection_group.setStyleSheet("QGroupBox::title { padding-left: 20px; }")
+        connection_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         connection_layout = QGridLayout(connection_group)
+        connection_layout.setContentsMargins(8, 12, 8, 8)
+        connection_layout.setSpacing(4)
+        connection_layout.setVerticalSpacing(3)
         
-        # Set minimum column widths to prevent text truncation
-        connection_layout.setColumnMinimumWidth(0, 80)  # Label column
-        connection_layout.setColumnMinimumWidth(1, 180)  # Input column
-        connection_layout.setColumnStretch(1, 1)  # Allow input column to expand
+        # Set column stretch
+        connection_layout.setColumnStretch(0, 0)
+        connection_layout.setColumnStretch(1, 1)
+        
+        row = 0
         
         # Database type
-        connection_layout.addWidget(QLabel("Tipo:"), 0, 0)
+        lbl_tipo = QLabel("Tipo:")
+        lbl_tipo.setStyleSheet("font-size: 11px;")
+        connection_layout.addWidget(lbl_tipo, row, 0)
         self.db_type_combo = QComboBox()
         self.db_type_combo.addItems(["Firebird", "SQL Server"])
         self.db_type_combo.currentTextChanged.connect(self.on_db_type_change)
-        self.db_type_combo.setMinimumWidth(150)
-        connection_layout.addWidget(self.db_type_combo, 0, 1)
+        connection_layout.addWidget(self.db_type_combo, row, 1)
+        row += 1
         
         # Host
-        connection_layout.addWidget(QLabel("Host:"), 1, 0)
+        lbl_host = QLabel("Host:")
+        lbl_host.setStyleSheet("font-size: 11px;")
+        connection_layout.addWidget(lbl_host, row, 0)
         self.host_entry = QLineEdit("localhost")
-        self.host_entry.setMinimumWidth(150)
-        connection_layout.addWidget(self.host_entry, 1, 1)
+        connection_layout.addWidget(self.host_entry, row, 1)
+        row += 1
         
         # Port
-        connection_layout.addWidget(QLabel("Porta:"), 2, 0)
+        lbl_porta = QLabel("Porta:")
+        lbl_porta.setStyleSheet("font-size: 11px;")
+        connection_layout.addWidget(lbl_porta, row, 0)
         self.port_entry = QLineEdit("3050")
-        self.port_entry.setMinimumWidth(150)
-        connection_layout.addWidget(self.port_entry, 2, 1)
+        connection_layout.addWidget(self.port_entry, row, 1)
+        row += 1
         
         # Username
-        connection_layout.addWidget(QLabel("Usuário:"), 3, 0)
+        lbl_usuario = QLabel("Usuário:")
+        lbl_usuario.setStyleSheet("font-size: 11px;")
+        connection_layout.addWidget(lbl_usuario, row, 0)
         self.username_entry = QLineEdit("SYSDBA")
-        self.username_entry.setMinimumWidth(150)
-        connection_layout.addWidget(self.username_entry, 3, 1)
+        connection_layout.addWidget(self.username_entry, row, 1)
+        row += 1
         
         # Password
-        connection_layout.addWidget(QLabel("Senha:"), 4, 0)
+        lbl_senha = QLabel("Senha:")
+        lbl_senha.setStyleSheet("font-size: 11px;")
+        connection_layout.addWidget(lbl_senha, row, 0)
         self.password_entry = QLineEdit("masterkey")
         self.password_entry.setEchoMode(QLineEdit.Password)
-        self.password_entry.setMinimumWidth(150)
-        connection_layout.addWidget(self.password_entry, 4, 1)
+        connection_layout.addWidget(self.password_entry, row, 1)
+        row += 1
         
         # Database
-        connection_layout.addWidget(QLabel("Database:"), 5, 0)
+        lbl_db = QLabel("Database:")
+        lbl_db.setStyleSheet("font-size: 11px;")
+        connection_layout.addWidget(lbl_db, row, 0)
         self.database_combo = QComboBox()
         self.database_combo.currentTextChanged.connect(self.on_database_option_changed)
-        self.database_combo.setMinimumWidth(150)
-        connection_layout.addWidget(self.database_combo, 5, 1)
+        connection_layout.addWidget(self.database_combo, row, 1)
+        row += 1
         
         # Custom database field
         self.custom_db_entry = QLineEdit()
         self.custom_db_entry.setVisible(False)
-        self.custom_db_entry.setMinimumWidth(150)
-        connection_layout.addWidget(self.custom_db_entry, 6, 0, 1, 2)
+        self.custom_db_entry.setPlaceholderText("Caminho do banco...")
+        connection_layout.addWidget(self.custom_db_entry, row, 0, 1, 2)
+        row += 1
         
         # Connect button
         self.connect_btn = QPushButton("Conectar")
         self.connect_btn.clicked.connect(self.handle_connection)
-        self.connect_btn.setMinimumHeight(35)
-        connection_layout.addWidget(self.connect_btn, 7, 0, 1, 2)
-        
-        # Add some spacing before status label
-        spacer_label = QLabel()
-        spacer_label.setMinimumHeight(10)  # 10px spacing
-        connection_layout.addWidget(spacer_label, 8, 0, 1, 2)
+        self.connect_btn.setMinimumHeight(28)
+        self.connect_btn.setMaximumHeight(34)
+        connection_layout.addWidget(self.connect_btn, row, 0, 1, 2)
+        row += 1
         
         # Status label
         self.status_label = QLabel()
         self.update_status(False, "Desconectado")
-        self.status_label.setMinimumHeight(25)
-        self.status_label.setWordWrap(True)  # Allow text wrapping if needed
-        connection_layout.addWidget(self.status_label, 9, 0, 1, 2)
-        
-        # Set minimum size for the connection group
-        connection_group.setMinimumWidth(280)
-        connection_group.setMinimumHeight(300)
+        self.status_label.setMinimumHeight(18)
+        self.status_label.setWordWrap(True)
+        connection_layout.addWidget(self.status_label, row, 0, 1, 2)
         
         layout.addWidget(connection_group)
-        
-        # Set minimum size for the entire panel
-        self.setMinimumWidth(300)
-        self.setMinimumHeight(320)
     
     def setup_styles(self):
         """Setup component styles"""
         self.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                border: 2px solid #bdc3c7;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 15px;
+                font-size: 11px;
+                border: 1px solid #bdc3c7;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding-top: 12px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
+                left: 10px;
+                padding: 0 6px;
                 color: #34495e;
             }
             QPushButton {
@@ -140,10 +153,10 @@ class ConnectionPanel(QWidget):
                 color: white;
                 border: none;
                 border-radius: 4px;
-                padding: 8px 20px;
+                padding: 6px 12px;
                 font-weight: bold;
-                font-size: 12px;
-                min-height: 25px;
+                font-size: 11px;
+                min-height: 22px;
             }
             QPushButton:hover {
                 background-color: #2980b9;
@@ -157,25 +170,31 @@ class ConnectionPanel(QWidget):
             }
             QLineEdit, QComboBox {
                 border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                padding: 5px;
+                border-radius: 3px;
+                padding: 4px 6px;
                 background-color: white;
                 color: #2c3e50;
+                font-size: 11px;
+                min-height: 18px;
+                max-height: 24px;
             }
             QComboBox::drop-down {
                 border: none;
+                width: 18px;
             }
             QComboBox QAbstractItemView {
                 background-color: white;
                 color: #2c3e50;
                 selection-background-color: #3498db;
                 selection-color: white;
+                font-size: 11px;
             }
-            QComboBox QAbstractItemView::item:hover {
-                background-color: #41aaf0;
-            }
-            QComboBox:hover {
+            QComboBox:hover, QLineEdit:hover {
                 border: 1px solid #3498db;
+            }
+            QLabel {
+                font-size: 11px;
+                color: #2c3e50;
             }
         """)
     
@@ -285,16 +304,14 @@ class ConnectionPanel(QWidget):
         self.is_connected = connected
         
         if connected:
-            connected_icon = qta.icon('fa5s.circle', color='#27ae60')
-            self.status_label.setPixmap(connected_icon.pixmap(20, 20))
-            self.status_label.setText(" Conectado")
-            self.status_label.setStyleSheet("color: #27ae60; font-weight: bold; font-size: 13px;")
+            self.status_label.setText("● Conectado")
+            self.status_label.setStyleSheet("color: #27ae60; font-weight: bold; font-size: 11px;")
             self.connect_btn.setText("Desconectar")
+            # Salvar configurações após conexão bem-sucedida
+            self.save_connection_config()
         else:
-            disconnected_icon = qta.icon('fa5s.circle', color='#e74c3c')
-            self.status_label.setPixmap(disconnected_icon.pixmap(20, 20))
-            self.status_label.setText(f" {message}" if message else " Desconectado")
-            self.status_label.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 13px;")
+            self.status_label.setText(f"● {message}" if message else "● Desconectado")
+            self.status_label.setStyleSheet("color: #e74c3c; font-weight: bold; font-size: 11px;")
             self.connect_btn.setText("Conectar")
         
         self.connection_changed.emit(connected)
@@ -303,10 +320,8 @@ class ConnectionPanel(QWidget):
         """Set UI to connecting state"""
         self.connect_btn.setEnabled(False)
         self.connect_btn.setText("Conectando...")
-        connecting_icon = qta.icon('fa5s.circle', color='#f39c12')
-        self.status_label.setPixmap(connecting_icon.pixmap(20, 20))
-        self.status_label.setText(" Conectando...")
-        self.status_label.setStyleSheet("color: #f39c12; font-weight: bold; font-size: 13px;")
+        self.status_label.setText("● Conectando...")
+        self.status_label.setStyleSheet("color: #f39c12; font-weight: bold; font-size: 11px;")
     
     def reset_connection_state(self):
         """Reset connection button state"""
@@ -342,3 +357,79 @@ class ConnectionPanel(QWidget):
             'password': password,
             'database': database
         }
+    
+    def _load_saved_config(self):
+        """Carrega as configurações salvas do arquivo INI."""
+        if not self.config.should_remember_connection():
+            self.on_db_type_change()
+            return
+            
+        try:
+            conn_config = self.config.get_connection_config()
+            
+            # Definir tipo de banco (isso dispara on_db_type_change)
+            db_type = conn_config.get('db_type', 'Firebird')
+            index = self.db_type_combo.findText(db_type)
+            if index >= 0:
+                # Bloquear sinal temporariamente para evitar reset
+                self.db_type_combo.blockSignals(True)
+                self.db_type_combo.setCurrentIndex(index)
+                self.db_type_combo.blockSignals(False)
+            
+            # Configurar opções do combo de database baseado no tipo
+            self._setup_database_options(db_type)
+            
+            # Carregar valores salvos
+            self.host_entry.setText(conn_config.get('host', 'localhost'))
+            self.port_entry.setText(conn_config.get('port', '3050'))
+            self.username_entry.setText(conn_config.get('username', 'SYSDBA'))
+            self.password_entry.setText(conn_config.get('password', 'masterkey'))
+            
+            # Definir opção de database
+            db_option = conn_config.get('database_option', 'SRV')
+            index = self.database_combo.findText(db_option)
+            if index >= 0:
+                self.database_combo.setCurrentIndex(index)
+            
+            # Definir caminho customizado
+            custom_db = conn_config.get('custom_database', '')
+            if custom_db:
+                self.custom_db_entry.setText(custom_db)
+            
+            # Mostrar/ocultar campo customizado
+            self.on_database_option_changed()
+            
+        except Exception as e:
+            # Em caso de erro, usar valores padrão
+            self.on_db_type_change()
+    
+    def _setup_database_options(self, db_type: str):
+        """Configura as opções do combo de database."""
+        self.database_combo.clear()
+        if db_type == "Firebird":
+            self.database_combo.addItems(["SRV", "CAD", "MOV", "Custom"])
+        else:
+            self.database_combo.addItems(["syspdv", "master", "Custom"])
+    
+    def save_connection_config(self):
+        """Salva as configurações de conexão atuais."""
+        if not self.config.should_remember_connection():
+            return
+            
+        db_type = self.db_type_combo.currentText()
+        host = self.host_entry.text()
+        port = self.port_entry.text()
+        username = self.username_entry.text()
+        password = self.password_entry.text()
+        database_option = self.database_combo.currentText()
+        custom_database = self.custom_db_entry.text() if database_option == "Custom" else ""
+        
+        self.config.save_connection_config(
+            db_type=db_type,
+            host=host,
+            port=port,
+            username=username,
+            password=password,
+            database_option=database_option,
+            custom_database=custom_database
+        )

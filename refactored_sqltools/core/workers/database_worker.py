@@ -66,6 +66,8 @@ class DatabaseWorker(QThread):
                 self._handle_connect_operation()
             elif self.operation == 'execute_query':
                 self._handle_execute_query_operation()
+            elif self.operation == 'custom_operation':
+                self._handle_custom_operation()
             elif self.operation == 'disconnect':
                 self._handle_disconnect_operation()
             else:
@@ -165,6 +167,55 @@ class DatabaseWorker(QThread):
             self.progress.emit(100)
             # Usar a mensagem de erro diretamente do driver, sem adicionar prefixo duplicado
             self.finished.emit(False, str(e), None)
+    
+    def _handle_custom_operation(self) -> None:
+        """
+        Handle custom operation execution (operations with custom execute method).
+        
+        Expected kwargs: operation_instance, parameters
+        """
+        operation_instance = self.kwargs.get('operation_instance')
+        parameters = self.kwargs.get('parameters', {})
+        
+        if not operation_instance:
+            raise ValueError("Operação customizada requer operation_instance")
+        
+        self.progress.emit(20)
+        
+        try:
+            # Check connection
+            if not self.db_manager.is_connected():
+                raise ConnectionError("Não conectado ao banco de dados")
+            
+            self.progress.emit(40)
+            
+            # Execute custom operation
+            result = operation_instance.execute(self.db_manager, **parameters)
+            
+            self.progress.emit(80)
+            
+            # Convert OperationResult to QueryResult for compatibility
+            from ..database.drivers.base import QueryResult
+            query_result = QueryResult(
+                success=result.success,
+                message=result.message,
+                columns=result.columns,
+                data=result.data,
+                rows_affected=result.rows_affected
+            )
+            
+            self.progress.emit(100)
+            
+            if result.success:
+                self.finished.emit(True, result.message, query_result)
+            else:
+                self.finished.emit(False, result.message, query_result)
+                
+        except Exception as e:
+            self.progress.emit(100)
+            import traceback
+            traceback.print_exc()
+            self.finished.emit(False, f"Erro na operação: {str(e)}", None)
     
     def _handle_disconnect_operation(self) -> None:
         """
@@ -312,4 +363,27 @@ class DatabaseWorkerFactory:
         
         return DatabaseWorker(
             db_manager, 'disconnect', operation_name, *args
+        )
+    
+    @staticmethod
+    def create_custom_operation_worker(db_manager: DatabaseManager,
+                                       operation_instance: Any,
+                                       operation_name: str,
+                                       parameters: dict = None) -> DatabaseWorker:
+        """
+        Create a worker for custom operation execution.
+        
+        Args:
+            db_manager (DatabaseManager): Database manager instance
+            operation_instance: Operation instance with execute method
+            operation_name (str): Human-readable operation name
+            parameters (dict): Parameters to pass to the operation
+            
+        Returns:
+            DatabaseWorker: Configured worker for custom operation
+        """
+        return DatabaseWorker(
+            db_manager, 'custom_operation', operation_name,
+            operation_instance=operation_instance,
+            parameters=parameters or {}
         )

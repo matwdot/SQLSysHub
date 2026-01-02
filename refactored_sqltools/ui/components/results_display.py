@@ -10,8 +10,8 @@ Adds toggle between table and text display modes.
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, 
                             QTableWidget, QTableWidgetItem, QGroupBox, 
                             QPushButton, QApplication, QLabel, QSpinBox)
-from PyQt5.QtCore import pyqtSignal, QTimer, QPropertyAnimation, QEasingCurve, QRect
-from PyQt5.QtGui import QFont, QPalette, QBrush, QColor
+from PyQt5.QtCore import pyqtSignal, QTimer, Qt
+from PyQt5.QtGui import QFont, QBrush, QColor
 import qtawesome as qta
 
 
@@ -42,58 +42,89 @@ class ResultsDisplay(QWidget):
     def setup_ui(self):
         """Setup the results display UI"""
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
         # Results group with toggle button
-        results_group = QGroupBox("📊 Resultados")
+        results_group = QGroupBox("Resultados")
         results_layout = QVBoxLayout(results_group)
+        results_layout.setContentsMargins(8, 8, 8, 8)
+        results_layout.setSpacing(6)
         
-        # Toggle button for display mode (compact and discrete)
-        toggle_layout = QHBoxLayout()
-        toggle_layout.addStretch()  # Push button to the right
-        self.toggle_btn = QPushButton()
-        table_icon = qta.icon('fa5s.table', color='#7f8c8d')
-        self.toggle_btn.setIcon(table_icon)
-        self.toggle_btn.setToolTip("Mostrar Tabela")
-        self.toggle_btn.clicked.connect(self.toggle_display_mode)
-        self.toggle_btn.setVisible(False)  # Initially hidden
-        toggle_layout.addWidget(self.toggle_btn)
-        results_layout.addLayout(toggle_layout)
+        # Header com toggle e paginação na mesma linha
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
         
-        # Pagination controls
+        # Paginação (esquerda)
         self.pagination_widget = QWidget()
         pagination_layout = QHBoxLayout(self.pagination_widget)
         pagination_layout.setContentsMargins(0, 0, 0, 0)
+        pagination_layout.setSpacing(4)
         
         # Previous button
-        self.prev_btn = QPushButton("◀ Anterior")
+        self.prev_btn = QPushButton("◀")
+        self.prev_btn.setObjectName("paginationBtn")
+        self.prev_btn.setToolTip("Página anterior")
         self.prev_btn.clicked.connect(self.previous_page)
         self.prev_btn.setEnabled(False)
         pagination_layout.addWidget(self.prev_btn)
         
         # Page info
-        self.page_label = QLabel("Página 1 de 1")
-        self.page_label.setStyleSheet("font-weight: bold; color: #34495e; padding: 5px 10px;")
+        self.page_label = QLabel("1 / 1")
+        self.page_label.setObjectName("pageLabel")
+        self.page_label.setAlignment(Qt.AlignCenter)
         pagination_layout.addWidget(self.page_label)
         
         # Next button
-        self.next_btn = QPushButton("Próxima ▶")
+        self.next_btn = QPushButton("▶")
+        self.next_btn.setObjectName("paginationBtn")
+        self.next_btn.setToolTip("Próxima página")
         self.next_btn.clicked.connect(self.next_page)
         self.next_btn.setEnabled(False)
         pagination_layout.addWidget(self.next_btn)
         
-        pagination_layout.addStretch()
+        # Separador
+        sep_label = QLabel("|")
+        sep_label.setStyleSheet("color: #bdc3c7; margin: 0 4px;")
+        pagination_layout.addWidget(sep_label)
         
-        # Records per page
-        pagination_layout.addWidget(QLabel("Registros por página:"))
+        # Records per page (compacto)
         self.rows_per_page_spin = QSpinBox()
-        self.rows_per_page_spin.setRange(10, 1000)
+        self.rows_per_page_spin.setObjectName("rowsSpinBox")
+        self.rows_per_page_spin.setRange(10, 500)
         self.rows_per_page_spin.setValue(100)
         self.rows_per_page_spin.setSingleStep(50)
+        self.rows_per_page_spin.setToolTip("Registros por página")
         self.rows_per_page_spin.valueChanged.connect(self.change_rows_per_page)
         pagination_layout.addWidget(self.rows_per_page_spin)
         
+        rows_label = QLabel("por pág.")
+        rows_label.setStyleSheet("color: #7f8c8d; font-size: 10px;")
+        pagination_layout.addWidget(rows_label)
+        
+        # Total de registros
+        self.total_label = QLabel("")
+        self.total_label.setObjectName("totalLabel")
+        pagination_layout.addWidget(self.total_label)
+        
         self.pagination_widget.setVisible(False)
-        results_layout.addWidget(self.pagination_widget)
+        header_layout.addWidget(self.pagination_widget)
+        
+        header_layout.addStretch()
+        
+        # Toggle button (direita, compacto)
+        self.toggle_btn = QPushButton()
+        self.toggle_btn.setObjectName("toggleBtn")
+        table_icon = qta.icon('fa5s.table', color='#7f8c8d')
+        self.toggle_btn.setIcon(table_icon)
+        self.toggle_btn.setToolTip("Alternar visualização")
+        self.toggle_btn.clicked.connect(self.toggle_display_mode)
+        self.toggle_btn.setVisible(False)
+        header_layout.addWidget(self.toggle_btn)
+        
+        results_layout.addWidget(header_widget)
         
         # Text display
         self.results_text = QTextEdit()
@@ -118,99 +149,144 @@ class ResultsDisplay(QWidget):
         self.setStyleSheet("""
             QGroupBox {
                 font-weight: bold;
-                border: 2px solid #bdc3c7;
-                border-radius: 6px;
-                margin-top: 12px;
-                padding-top: 15px;
+                font-size: 11px;
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                margin-top: 8px;
+                padding-top: 12px;
                 background-color: white;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
+                left: 10px;
+                padding: 0 5px;
                 color: #34495e;
             }
-            QPushButton {
-                background-color: transparent;
-                color: #7f8c8d;
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-                padding: 4px;
-                font-size: 10px;
-                min-width: 20px;
-                min-height: 20px;
-                max-width: 24px;
-                max-height: 24px;
-            }
-            QPushButton:hover {
-                background-color: #ecf0f1;
-                color: #34495e;
-                border-color: #95a5a6;
-            }
-            QPushButton:pressed {
-                background-color: #d5dbdb;
-                color: #2c3e50;
-            }
-            QPushButton:disabled {
+            
+            /* Botões de paginação */
+            QPushButton#paginationBtn {
                 background-color: #f8f9fa;
-                color: #bdc3c7;
-                border-color: #ecf0f1;
-            }
-            QWidget QPushButton {
-                max-width: none;
-                min-width: 80px;
-                min-height: 28px;
-                font-size: 11px;
-                padding: 6px 12px;
-            }
-            QSpinBox {
-                border: 1px solid #bdc3c7;
+                color: #495057;
+                border: 1px solid #dee2e6;
                 border-radius: 3px;
-                padding: 4px;
+                padding: 2px 8px;
+                font-size: 10px;
+                min-width: 24px;
+                max-width: 24px;
+                min-height: 20px;
+                max-height: 20px;
+            }
+            QPushButton#paginationBtn:hover {
+                background-color: #e9ecef;
+                border-color: #adb5bd;
+            }
+            QPushButton#paginationBtn:pressed {
+                background-color: #dee2e6;
+            }
+            QPushButton#paginationBtn:disabled {
+                background-color: #f8f9fa;
+                color: #ced4da;
+                border-color: #e9ecef;
+            }
+            
+            /* Toggle button */
+            QPushButton#toggleBtn {
+                background-color: transparent;
+                color: #6c757d;
+                border: 1px solid #dee2e6;
+                border-radius: 3px;
+                padding: 2px;
+                min-width: 20px;
+                max-width: 20px;
+                min-height: 20px;
+                max-height: 20px;
+            }
+            QPushButton#toggleBtn:hover {
+                background-color: #f8f9fa;
+                border-color: #adb5bd;
+            }
+            
+            /* Page label */
+            QLabel#pageLabel {
+                color: #495057;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 0 6px;
+                min-width: 50px;
+            }
+            
+            /* Total label */
+            QLabel#totalLabel {
+                color: #6c757d;
+                font-size: 10px;
+                margin-left: 8px;
+            }
+            
+            /* Spin box */
+            QSpinBox#rowsSpinBox {
+                border: 1px solid #dee2e6;
+                border-radius: 3px;
+                padding: 1px 4px;
                 background-color: white;
-                color: #2c3e50;
-                font-size: 11px;
-                min-width: 60px;
+                color: #495057;
+                font-size: 10px;
+                min-width: 45px;
+                max-width: 50px;
+                min-height: 18px;
+                max-height: 20px;
             }
-            QSpinBox:hover {
-                border-color: #3498db;
+            QSpinBox#rowsSpinBox:hover {
+                border-color: #adb5bd;
             }
+            QSpinBox#rowsSpinBox::up-button, QSpinBox#rowsSpinBox::down-button {
+                width: 12px;
+            }
+            
             QTextEdit {
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
+                border: 1px solid #dee2e6;
+                border-radius: 3px;
                 padding: 5px;
                 background-color: white;
-                color: #2c3e50;
+                color: #212529;
             }
             QTableWidget {
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
+                border: 1px solid #dee2e6;
+                border-radius: 3px;
                 background-color: white;
-                gridline-color: #ecf0f1;
+                gridline-color: #e9ecef;
                 selection-background-color: #3498db;
                 selection-color: white;
             }
             QTableWidget::item {
-                padding: 4px 6px;
-                border-bottom: 1px solid #ecf0f1;
-                min-height: 16px;
+                padding: 3px 5px;
+                border-bottom: 1px solid #f1f3f4;
             }
             QTableWidget::item:hover {
-                background-color: #f8f9fa;
-                border: 1px solid #e9ecef;
+                background-color: #e8f4fc;
             }
             QTableWidget::item:selected {
-                background-color: #e3f2fd;
-                color: #1976d2;
-                border: 1px solid #90caf9;
+                background-color: #3498db;
+                color: white;
             }
             QHeaderView::section {
                 background-color: #34495e;
                 color: white;
-                padding: 6px 8px;
+                padding: 5px 6px;
                 border: none;
+                border-right: 1px solid #2c3e50;
                 font-weight: bold;
-                min-height: 24px;
+                font-size: 10px;
+            }
+            QHeaderView::section:hover {
+                background-color: #4a6278;
+            }
+            QToolTip {
+                background-color: #2c3e50;
+                color: white;
+                border: none;
+                padding: 4px 6px;
+                border-radius: 2px;
+                font-size: 10px;
             }
         """)
     
@@ -277,29 +353,35 @@ class ResultsDisplay(QWidget):
         # Populate table data for current page
         for row_idx, row in enumerate(page_data):
             for col_idx, val in enumerate(row):
-                item = QTableWidgetItem(str(val) if val is not None else "NULL")
+                text = str(val) if val is not None else "NULL"
+                item = QTableWidgetItem(text)
+                # Adicionar tooltip com texto completo
+                item.setToolTip(text)
                 self.results_table.setItem(row_idx, col_idx, item)
         
-        # Resize columns to content and stretch to fill available space
+        # Configurar header para permitir redimensionamento manual
+        header = self.results_table.horizontalHeader()
+        header.setStretchLastSection(True)
+        
+        # Usar Interactive para permitir redimensionamento manual pelo usuário
+        from PyQt5.QtWidgets import QHeaderView
+        for col in range(len(self.all_columns)):
+            header.setSectionResizeMode(col, QHeaderView.Interactive)
+        
+        # Redimensionar colunas para o conteúdo inicialmente
         self.results_table.resizeColumnsToContents()
         
-        # If there are few columns, stretch them to fill the available width
-        if len(self.all_columns) <= 5:  # For 5 or fewer columns
-            header = self.results_table.horizontalHeader()
-            header.setStretchLastSection(True)
-            # Distribute space more evenly among columns
-            for col in range(len(self.all_columns)):
-                header.setSectionResizeMode(col, header.Stretch)
-        else:
-            # For many columns, use content-based sizing
-            header = self.results_table.horizontalHeader()
-            header.setStretchLastSection(False)
-            for col in range(len(self.all_columns)):
-                header.setSectionResizeMode(col, header.ResizeToContents)
+        # Definir largura mínima para cada coluna
+        for col in range(len(self.all_columns)):
+            current_width = self.results_table.columnWidth(col)
+            # Mínimo de 80px, máximo de 300px inicialmente
+            new_width = max(80, min(300, current_width))
+            self.results_table.setColumnWidth(col, new_width)
     
     def update_pagination_controls(self):
         """Update pagination control states"""
-        self.page_label.setText(f"Página {self.current_page} de {self.total_pages} ({len(self.all_data)} registros)")
+        self.page_label.setText(f"{self.current_page} / {self.total_pages}")
+        self.total_label.setText(f"({len(self.all_data)} reg.)")
         self.prev_btn.setEnabled(self.current_page > 1)
         self.next_btn.setEnabled(self.current_page < self.total_pages)
     

@@ -9,7 +9,8 @@ Connects component signals for inter-component communication.
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QSplitter, QGroupBox, QPushButton,
-                            QLabel, QMessageBox, QStatusBar)
+                            QLabel, QMessageBox, QStatusBar, QScrollArea,
+                            QSizePolicy, QApplication)
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QFont, QIcon
 import qtawesome as qta
@@ -17,11 +18,11 @@ import qtawesome as qta
 from refactored_sqltools.ui.components.connection_panel import ConnectionPanel
 from refactored_sqltools.ui.components.operation_selector import OperationSelector
 from refactored_sqltools.ui.components.results_display import ResultsDisplay
-from refactored_sqltools.ui.components.progress_indicator import ProgressIndicator
+from refactored_sqltools.ui.components.status_progress import StatusProgressWidget
 from refactored_sqltools.ui.components.sql_editor import SQLEditorWidget
-from refactored_sqltools.ui.windows.parameter_dialog import show_parameter_dialog
 from refactored_sqltools.core.database.manager import DatabaseManager
 from refactored_sqltools.core.workers.database_worker import DatabaseWorker, DatabaseWorkerFactory
+from refactored_sqltools.config import get_config_manager
 
 
 class MainWindow(QMainWindow):
@@ -39,12 +40,16 @@ class MainWindow(QMainWindow):
         # Core components
         self.db_manager = DatabaseManager()
         self.worker = None
+        self.config = get_config_manager()
         
         # Setup window
         self.setup_window()
         self.setup_ui()
         self.setup_styles()
         self.connect_signals()
+        
+        # Auto-connect if enabled
+        self._try_auto_connect()
     
     def setup_window(self):
         """Configure main window properties"""
@@ -56,13 +61,35 @@ class MainWindow(QMainWindow):
         except:
             pass  # Icon file may not exist in all environments
         
-        self.setGeometry(100, 100, 1100, 700)
-        self.setMinimumSize(1000, 650)  # Increased minimum size to prevent layout issues
+        # Get screen size for responsive sizing
+        screen = QApplication.primaryScreen().geometry()
+        screen_width = screen.width()
+        screen_height = screen.height()
         
-        # Setup status bar
+        # Calculate responsive window size (80% of screen, with limits)
+        window_width = min(max(900, int(screen_width * 0.8)), 1400)
+        window_height = min(max(600, int(screen_height * 0.8)), 900)
+        
+        # Center window on screen
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        
+        self.setGeometry(x, y, window_width, window_height)
+        
+        # Set minimum size to prevent layout breaking
+        self.setMinimumSize(800, 550)
+        
+        # Setup status bar with progress widget
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Pronto", 0)  # Permanent message
+        
+        # Add progress widget to status bar (initially hidden)
+        self.status_progress = StatusProgressWidget()
+        self.status_progress.setVisible(False)
+        self.status_bar.addWidget(self.status_progress, 1)
+        
+        # Show default message
+        self.status_bar.showMessage("Pronto")
     
     def setup_ui(self):
         """Setup the main user interface"""
@@ -71,69 +98,97 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         
         main_layout = QHBoxLayout(central_widget)
-        main_layout.setContentsMargins(5, 5, 5, 5)  # Add some margins
+        main_layout.setContentsMargins(4, 4, 4, 4)
+        main_layout.setSpacing(4)
         
         # Create splitter for sidebar and main area
-        splitter = QSplitter(Qt.Horizontal)
-        main_layout.addWidget(splitter)
+        self.splitter = QSplitter(Qt.Horizontal)
+        main_layout.addWidget(self.splitter)
         
-        # Create sidebar and main area
+        # Create sidebar with scroll area
         self.create_sidebar()
         self.create_main_area()
         
         # Add to splitter
-        splitter.addWidget(self.sidebar_widget)
-        splitter.addWidget(self.main_widget)
+        self.splitter.addWidget(self.sidebar_scroll)
+        self.splitter.addWidget(self.main_widget)
         
-        # Set minimum sizes to prevent content truncation
-        self.sidebar_widget.setMinimumWidth(300)
-        self.main_widget.setMinimumWidth(400)
+        # Set minimum sizes
+        self.sidebar_scroll.setMinimumWidth(260)
+        self.sidebar_scroll.setMaximumWidth(400)
+        self.main_widget.setMinimumWidth(350)
         
         # Set initial sizes with proper proportions
-        splitter.setSizes([350, 650])
+        self.splitter.setSizes([280, 520])
         
         # Set stretch factors (sidebar less stretchable than main area)
-        splitter.setStretchFactor(0, 0)  # Sidebar doesn't stretch much
-        splitter.setStretchFactor(1, 1)  # Main area gets most of the stretch
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
     
     def create_sidebar(self):
         """Create the sidebar with connection and operation controls"""
+        # Create scroll area for sidebar
+        self.sidebar_scroll = QScrollArea()
+        self.sidebar_scroll.setWidgetResizable(True)
+        self.sidebar_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.sidebar_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.sidebar_scroll.setFrameShape(QScrollArea.NoFrame)
+        self.sidebar_scroll.setStyleSheet("""
+            QScrollArea {
+                background-color: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #f0f0f0;
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: #bdc3c7;
+                border-radius: 4px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #95a5a6;
+            }
+        """)
+        
+        # Sidebar content widget
         self.sidebar_widget = QWidget()
-        self.sidebar_widget.setMinimumWidth(300)  # Ensure minimum width
+        self.sidebar_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         sidebar_layout = QVBoxLayout(self.sidebar_widget)
-        sidebar_layout.setContentsMargins(5, 5, 5, 5)  # Add margins
-        sidebar_layout.setSpacing(10)  # Add spacing between components
+        sidebar_layout.setContentsMargins(2, 2, 2, 2)
+        sidebar_layout.setSpacing(6)
         
         # Connection panel
         self.connection_panel = ConnectionPanel()
+        self.connection_panel.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         sidebar_layout.addWidget(self.connection_panel)
-        
-        # Add spacing between connection and operation sections
-        sidebar_layout.addSpacing(15)  # 15px spacing
         
         # Operation selector
         self.operation_selector = OperationSelector()
-        self.operation_selector.setMinimumHeight(200)  # Ensure minimum height
+        self.operation_selector.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         sidebar_layout.addWidget(self.operation_selector)
         
         # Execute button
         self.execute_btn = QPushButton()
         play_icon = qta.icon('fa5s.play', color='white')
         self.execute_btn.setIcon(play_icon)
-        self.execute_btn.setIconSize(QSize(16, 16))
+        self.execute_btn.setIconSize(QSize(14, 14))
         self.execute_btn.setText(" Executar")
         self.execute_btn.clicked.connect(self.execute_operation)
         self.execute_btn.setEnabled(False)
-        self.execute_btn.setMinimumHeight(45)
+        self.execute_btn.setMinimumHeight(36)
+        self.execute_btn.setMaximumHeight(42)
         self.execute_btn.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #3498db, stop:1 #2980b9);
                 color: white;
                 border: none;
-                border-radius: 8px;
-                padding: 10px;
-                font-size: 14px;
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 12px;
                 font-weight: bold;
                 text-align: center;
             }
@@ -152,32 +207,36 @@ class MainWindow(QMainWindow):
         """)
         sidebar_layout.addWidget(self.execute_btn)
         
-        # Progress indicator
-        self.progress_indicator = ProgressIndicator()
-        sidebar_layout.addWidget(self.progress_indicator)
-        
+        # Add stretch to push everything to the top
         sidebar_layout.addStretch()
+        
+        # Set sidebar widget to scroll area
+        self.sidebar_scroll.setWidget(self.sidebar_widget)
     
     def create_main_area(self):
         """Create the main content area"""
         self.main_widget = QWidget()
+        self.main_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout = QVBoxLayout(self.main_widget)
+        main_layout.setContentsMargins(4, 4, 4, 4)
+        main_layout.setSpacing(4)
         
         # Title section with compact SQL toggle
         title_layout = QHBoxLayout()
+        title_layout.setSpacing(6)
         tools_icon = qta.icon('fa5s.tools', color='#2c3e50')
         icon_label = QLabel()
-        icon_label.setPixmap(tools_icon.pixmap(32, 32))
+        icon_label.setPixmap(tools_icon.pixmap(24, 24))
         title_label = QLabel("SQL SysHub")
-        title_label.setFont(QFont("Arial", 16, QFont.Bold))
-        title_label.setStyleSheet("color: #2c3e50; padding: 10px;")
+        title_label.setFont(QFont("Arial", 14, QFont.Bold))
+        title_label.setStyleSheet("color: #2c3e50; padding: 6px;")
         title_layout.addWidget(icon_label)
         title_layout.addWidget(title_label)
         title_layout.addStretch()
         
         # Compact SQL toggle button
         self.toggle_sql_btn = QPushButton()
-        self.toggle_sql_btn.setObjectName("compactToggleButton")  # For specific styling
+        self.toggle_sql_btn.setObjectName("compactToggleButton")
         eye_icon = qta.icon('fa5s.eye', color='#7f8c8d')
         self.toggle_sql_btn.setIcon(eye_icon)
         self.toggle_sql_btn.setToolTip("Mostrar SQL")
@@ -189,11 +248,12 @@ class MainWindow(QMainWindow):
         # SQL display group
         self.sql_group = QGroupBox("SQL a ser executado")
         sql_layout = QVBoxLayout(self.sql_group)
+        sql_layout.setContentsMargins(6, 6, 6, 6)
         
         # Use the new SQL editor widget
         self.sql_editor_widget = SQLEditorWidget()
-        self.sql_editor_widget.setMinimumHeight(200)  # Increased minimum height
-        self.sql_editor_widget.setMaximumHeight(400)  # Allow expansion up to 400px
+        self.sql_editor_widget.setMinimumHeight(120)
+        self.sql_editor_widget.setMaximumHeight(250)
         sql_layout.addWidget(self.sql_editor_widget)
         
         main_layout.addWidget(self.sql_group)
@@ -201,6 +261,7 @@ class MainWindow(QMainWindow):
         
         # Results display
         self.results_display = ResultsDisplay()
+        self.results_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout.addWidget(self.results_display)
     
     def setup_styles(self):
@@ -308,27 +369,56 @@ class MainWindow(QMainWindow):
         
         # Operation selector signals
         self.operation_selector.sql_updated.connect(self.update_sql_display)
-        self.operation_selector.parameters_requested.connect(self.handle_parameters_request)
-        self.operation_selector.execute_requested.connect(self.auto_execute_operation)
         
         # Results display signals
         self.results_display.cell_copied.connect(self.on_cell_copied)
+    
+    def _try_auto_connect(self):
+        """Tenta conectar automaticamente se a opção estiver habilitada."""
+        if not self.config.should_auto_connect():
+            return
+        
+        if not self.config.should_remember_connection():
+            return
+        
+        # Usar QTimer para executar após a janela ser exibida
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(500, self._do_auto_connect)
+    
+    def _do_auto_connect(self):
+        """Executa a conexão automática."""
+        try:
+            # Obter parâmetros de conexão do painel (já carregados do config)
+            params = self.connection_panel.get_connection_params()
+            
+            if not params.get('database'):
+                return
+            
+            # Emitir sinal de conexão
+            self.connection_panel.connection_requested.emit(
+                params['db_type'],
+                params['host'],
+                params['port'],
+                params['username'],
+                params['password'],
+                params['database']
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Auto-connect failed: {e}")
     
     def handle_connection_request(self, db_type, host, port, username, password, database):
         """Handle connection request from connection panel"""
         # Update UI state
         self.connection_panel.set_connecting_state()
-        self.progress_indicator.set_connecting_state()
-        
-        # Show connecting status
-        self.show_info_status(f"Conectando ao banco {db_type}...", 0)  # Permanent until finished
+        self.status_progress.set_connecting_state()
         
         # Create and start worker
         self.worker = DatabaseWorkerFactory.create_connection_worker(
             self.db_manager, db_type, host, port, username, password, database
         )
         self.worker.finished.connect(self.on_connection_finished)
-        self.worker.progress.connect(self.progress_indicator.set_progress)
+        self.worker.progress.connect(self.status_progress.set_progress)
         self.worker.start()
     
     def handle_disconnection_request(self):
@@ -345,48 +435,16 @@ class MainWindow(QMainWindow):
         """Handle connection state change"""
         self.execute_btn.setEnabled(connected)
     
-    def handle_parameters_request(self, operation_name, parameters_config):
-        """Handle request for operation parameters"""
-        # Show parameter dialog
-        parameters = show_parameter_dialog(operation_name, parameters_config, self)
-        
-        if parameters:
-            # Set parameters in operation selector
-            self.operation_selector.set_parameters(parameters)
-        else:
-            # User cancelled - clear any existing parameters
-            self.operation_selector.set_parameters({})
-    
-    def auto_execute_operation(self):
-        """Automatically execute operation after parameters are confirmed"""
-        # Check if we're connected to database
-        if not self.db_manager.is_connected():
-            # Show connection required message
-            self.show_error_status("Conecte-se ao banco de dados primeiro", 5000)
-            return
-        
-        # Check if we have a valid operation
-        operation = self.operation_selector.get_current_operation()
-        if not operation:
-            self.show_error_status("Nenhuma operação selecionada", 3000)
-            return
-        
-        # Execute the operation automatically
-        self.execute_operation()
-    
     def on_connection_finished(self, success, message, result):
         """Handle connection operation completion"""
-        self.progress_indicator.hide_progress()
         self.connection_panel.reset_connection_state()
         
         if success:
             self.connection_panel.update_status(True)
-            # Show success message in status bar instead of popup
-            self.show_success_status(message, 8000)  # Show for 8 seconds
+            self.status_progress.set_completed_state("Conectado com sucesso")
         else:
             self.connection_panel.update_status(False, "Erro na conexao")
-            # Show error in status bar and popup for critical errors
-            self.show_error_status(message, 10000)  # Show for 10 seconds
+            self.status_progress.set_error_state("Falha na conexão")
             
             # Custom error dialog
             msg_box = QMessageBox(self)
@@ -471,6 +529,15 @@ class MainWindow(QMainWindow):
             
             msg_box.exec_()
             return
+        
+        # Collect parameters from inline widgets if operation has parameters
+        if self.operation_selector.parameter_widgets:
+            parameters = self.operation_selector.collect_parameters()
+            if parameters is None:
+                # Validation failed
+                return
+            self.operation_selector.current_parameters = parameters
+            self.operation_selector.update_sql()
         
         # Get current operation
         operation = self.operation_selector.get_current_operation()
@@ -565,13 +632,27 @@ class MainWindow(QMainWindow):
         # Prepare UI
         self.execute_btn.setEnabled(False)
         self.execute_btn.setText("Executando...")
-        self.progress_indicator.set_executing_state(operation_name)
+        self.status_progress.set_executing_state(operation_name)
         self.results_display.clear()
         
-        # Show executing status
-        self.show_info_status(f"Executando: {operation_name}...", 0)  # Permanent until finished
+        # Check if operation has custom execute method
+        operation_instance = operation.get('operation_instance')
+        parameters = operation.get('parameters', {})
         
-        # Get formatted SQL
+        # Lista de operações que usam execute customizado
+        custom_execute_operations = ['Ver NCMs a Vencer']
+        
+        if operation_name in custom_execute_operations and operation_instance:
+            # Usar worker para operação customizada (execução assíncrona)
+            self.worker = DatabaseWorkerFactory.create_custom_operation_worker(
+                self.db_manager, operation_instance, operation_name, parameters
+            )
+            self.worker.finished.connect(self.on_operation_finished)
+            self.worker.progress.connect(self.status_progress.set_progress)
+            self.worker.start()
+            return
+        
+        # Fallback: usar SQL direto (comportamento padrão)
         sql = self.operation_selector.get_formatted_sql()
         
         # Create and start worker
@@ -579,12 +660,11 @@ class MainWindow(QMainWindow):
             self.db_manager, sql, operation_name
         )
         self.worker.finished.connect(self.on_operation_finished)
-        self.worker.progress.connect(self.progress_indicator.set_progress)
+        self.worker.progress.connect(self.status_progress.set_progress)
         self.worker.start()
     
     def on_operation_finished(self, success, message, result):
         """Handle operation completion"""
-        self.progress_indicator.hide_progress()
         self.execute_btn.setEnabled(True)
         self.execute_btn.setText(" Executar")
         
@@ -604,13 +684,12 @@ class MainWindow(QMainWindow):
         # Display results
         self.results_display.display_operation_result(success, message, result_dict)
         
-        # Show message in status bar for success, popup only for errors
+        # Update status progress
         if success:
-            # Show success message in status bar
-            self.show_success_status(message, 8000)  # Show for 8 seconds
+            row_count = len(result.data) if result and result.data else 0
+            self.status_progress.set_completed_state(f"Concluído - {row_count} registros")
         else:
-            # Show error in status bar and popup for critical errors
-            self.show_error_status(message, 10000)  # Show for 10 seconds
+            self.status_progress.set_error_state("Erro na operação")
             
             # Custom error dialog
             msg_box = QMessageBox(self)

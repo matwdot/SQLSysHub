@@ -20,6 +20,7 @@ if __name__ == "__main__":
 from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import Qt
 from refactored_sqltools.ui.windows.main_window import MainWindow
+from refactored_sqltools.ui.windows.splash_screen import SplashScreen
 
 
 def setup_logging(debug: bool = False):
@@ -108,21 +109,35 @@ def main():
         if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
             app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
         
-        # Create and show main window
-        logger.info("Creating main window...")
-        window = MainWindow()
+        # Show splash screen with system checks
+        logger.info("Showing splash screen...")
+        splash = SplashScreen()
         
-        # Setup cleanup on application quit
-        def cleanup():
-            logger.info("Cleaning up application resources...")
-            if hasattr(window, 'cleanup'):
-                window.cleanup()
+        # Variable to hold main window reference
+        main_window = None
         
-        app.aboutToQuit.connect(cleanup)
+        def on_loading_complete(success: bool):
+            nonlocal main_window
+            logger.info(f"Loading complete, success: {success}")
+            splash.close()
+            
+            # Create and show main window
+            logger.info("Creating main window...")
+            main_window = MainWindow()
+            
+            # Setup cleanup on application quit
+            def cleanup():
+                logger.info("Cleaning up application resources...")
+                if hasattr(main_window, 'cleanup'):
+                    main_window.cleanup()
+            
+            app.aboutToQuit.connect(cleanup)
+            main_window.show()
+            logger.info("Application started successfully")
         
-        # Show window and start event loop
-        window.show()
-        logger.info("Application started successfully")
+        splash.loading_complete.connect(on_loading_complete)
+        splash.show()
+        splash.start_loading()
         
         # Start event loop
         exit_code = app.exec_()

@@ -121,8 +121,12 @@ class DatabaseDriver(ABC):
         try:
             query_upper = query.strip().upper()
             
-            if query_upper.startswith('SELECT'):
-                # Handle SELECT queries
+            # Check if it's a SELECT query (including CTEs that start with WITH)
+            is_select_query = (query_upper.startswith('SELECT') or 
+                             query_upper.startswith('WITH'))
+            
+            if is_select_query:
+                # Handle SELECT queries (including CTEs)
                 rows = self._cursor.fetchall()
                 columns = [desc[0] for desc in self._cursor.description] if self._cursor.description else []
                 

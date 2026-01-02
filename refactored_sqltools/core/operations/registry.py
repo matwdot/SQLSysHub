@@ -171,42 +171,85 @@ class OperationRegistry:
             
         Returns:
             Dict[str, Any]: Parameter configuration
+            
+        Tipos de parâmetros suportados:
+            - text: Campo de texto simples
+            - number: SpinBox para números inteiros
+            - number_slider: SpinBox com slider visual
+            - decimal: SpinBox para números decimais
+            - date: Seletor de data estilizado com atalhos
+            - date_range: Seletor de intervalo de datas
+            - select: ComboBox para seleção
+            - checkbox: CheckBox para booleanos
+            - quick_select: Botões de seleção rápida
         """
         operation = self.get_operation(name)
         
         # Define parameter configurations for operations that need them
         parameter_configs = {
+            "Cancelar Cupom": {
+                "todos_caixas": {
+                    "type": "checkbox",
+                    "label": "Todos os Caixas",
+                    "checkbox_label": "Aplicar em todos os caixas",
+                    "default": True,
+                    "description": "Marque para cancelar cupons de todos os caixas"
+                },
+                "numero_caixa": {
+                    "type": "number",
+                    "label": "Número do Caixa",
+                    "min": 1,
+                    "max": 999,
+                    "default": 1,
+                    "description": "Número do caixa específico (ignorado se 'Todos os Caixas' estiver marcado)"
+                }
+            },
             "Consultar NCM Inexistente": {
                 "data_inicio": {
                     "type": "date",
                     "label": "Data Início",
-                    "default": "month_ago"
+                    "default": "month_ago",
+                    "description": "Data inicial do período de consulta"
                 },
                 "data_fim": {
                     "type": "date", 
                     "label": "Data Fim",
-                    "default": "today"
+                    "default": "today",
+                    "description": "Data final do período de consulta"
                 }
             },
             "Ver NCMs a Vencer": {
                 "registros_por_pagina": {
-                    "type": "text",
+                    "type": "number_slider",
                     "label": "Registros por Página",
-                    "default": "100",
-                    "placeholder": "Ex: 100, 500, 1000"
+                    "default": 100,
+                    "min": 10,
+                    "max": 1000,
+                    "step": 10,
+                    "description": "Quantidade de registros exibidos por página",
+                    "quick_options": [
+                        (50, "50"),
+                        (100, "100"),
+                        (250, "250"),
+                        (500, "500")
+                    ]
                 },
                 "pagina": {
-                    "type": "text",
+                    "type": "number",
                     "label": "Página",
-                    "default": "1",
-                    "placeholder": "Número da página (1, 2, 3...)"
+                    "default": 1,
+                    "min": 1,
+                    "max": 9999,
+                    "description": "Número da página a ser exibida"
                 }
             },
             "Buscar Produto por Código": {
                 "codigo_produto": {
                     "type": "text",
                     "label": "Código do Produto",
-                    "placeholder": "Digite o código do produto"
+                    "placeholder": "Digite o código do produto",
+                    "description": "Código único do produto no sistema",
+                    "required": True
                 }
             }
         }

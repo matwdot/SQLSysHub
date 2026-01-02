@@ -19,6 +19,8 @@ from .validators import (
     validate_sql_query
 )
 
+from .ncm_manager import NCMManager, get_ncm_manager
+
 __all__ = [
     'SQLSysHubException',
     'ConnectionError', 
@@ -28,5 +30,7 @@ __all__ = [
     'validate_connection_params',
     'validate_firebird_database_path',
     'validate_date_range',
-    'validate_sql_query'
+    'validate_sql_query',
+    'NCMManager',
+    'get_ncm_manager'
 ]

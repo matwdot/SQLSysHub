@@ -1,0 +1,94 @@
+{
+  "timestamp": "2025-12-30T20:05:29.874584",
+  "total_time": 3.6439521312713623,
+  "test_results": {
+    "unit": {
+      "success": false,
+      "returncode": 4,
+      "duration": 0.9572737216949463,
+      "stdout": "",
+      "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=test_report.json\n  inifile: C:\\Dados\\Projects\\ncm-inexistente\\pytest.ini\n  rootdir: C:\\Dados\\Projects\\ncm-inexistente\n\n",
+      "critical": true,
+      "test_details": {}
+    },
+    "integration": {
+      "success": false,
+      "returncode": 4,
+      "duration": 0.9668920040130615,
+      "stdout": "",
+      "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=test_report.json\n  inifile: C:\\Dados\\Projects\\ncm-inexistente\\pytest.ini\n  rootdir: C:\\Dados\\Projects\\ncm-inexistente\n\n",
+      "critical": true,
+      "test_details": {}
+    },
+    "property": {
+      "success": false,
+      "returncode": 4,
+      "duration": 0.8590066432952881,
+      "stdout": "",
+      "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=test_report.json\n  inifile: C:\\Dados\\Projects\\ncm-inexistente\\pytest.ini\n  rootdir: C:\\Dados\\Projects\\ncm-inexistente\n\n",
+      "critical": false,
+      "test_details": {}
+    },
+    "performance": {
+      "success": false,
+      "returncode": 4,
+      "duration": 0.8575091361999512,
+      "stdout": "",
+      "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=test_report.json\n  inifile: C:\\Dados\\Projects\\ncm-inexistente\\pytest.ini\n  rootdir: C:\\Dados\\Projects\\ncm-inexistente\n\n",
+      "critical": false,
+      "test_details": {}
+    }
+  },
+  "performance_metrics": {
+    "total_duration": 3.640681505203247,
+    "category_performance": {
+      "unit": {
+        "duration": 0.9572737216949463,
+        "threshold": 30,
+        "ratio": 0.03190912405649821,
+        "status": "good"
+      },
+      "integration": {
+        "duration": 0.9668920040130615,
+        "threshold": 60,
+        "ratio": 0.016114866733551024,
+        "status": "good"
+      },
+      "property": {
+        "duration": 0.8590066432952881,
+        "threshold": 120,
+        "ratio": 0.0071583886941274,
+        "status": "good"
+      },
+      "performance": {
+        "duration": 0.8575091361999512,
+        "threshold": 300,
+        "ratio": 0.0028583637873331705,
+        "status": "good"
+      }
+    },
+    "performance_issues": [],
+    "performance_score": 100
+  },
+  "regression_analysis": {
+    "has_regressions": false,
+    "message": "Insufficient historical data for regression analysis",
+    "regressions": []
+  },
+  "quality_score": {
+    "overall": 53.5,
+    "grade": "F",
+    "components": {
+      "test_success": 0.0,
+      "performance": 100,
+      "coverage": 75,
+      "code_quality": 85
+    },
+    "weights": {
+      "test_success": 0.4,
+      "performance": 0.3,
+      "coverage": 0.2,
+      "code_quality": 0.1
+    }
+  }
+}
