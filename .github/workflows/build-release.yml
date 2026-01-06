@@ -30,6 +30,9 @@ jobs:
 
       - name: Build executável
         run: python build_exe.py
+        env:
+          PYTHONIOENCODING: utf-8
+          PYTHONUTF8: 1
 
       - name: Upload artefato (build)
         uses: actions/upload-artifact@v4
