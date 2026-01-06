@@ -21,6 +21,7 @@ from refactored_sqltools.ui.components.enhanced_parameters import (
     ParameterWidgetFactory, StyledDateEdit, EnhancedSpinBox, 
     EnhancedLineEdit, EnhancedComboBox, NumberWithSlider
 )
+from refactored_sqltools.config import get_config_manager
 
 
 class OperationSelector(QWidget):
@@ -37,6 +38,7 @@ class OperationSelector(QWidget):
         self.current_parameters = {}  # Store current parameters for queries with variables
         self.parameter_widgets = {}  # Store parameter input widgets
         self.parameters_config = {}  # Store current parameters configuration
+        self.config = get_config_manager()
         self.setup_ui()
         self.setup_styles()
         self.load_operations()
@@ -251,8 +253,12 @@ class OperationSelector(QWidget):
         if current_selection and current_selection in all_operations:
             self.set_operation(current_selection)
         else:
-            # Select first operation if available
-            if all_operations:
+            # Try to restore last operation from config
+            last_operation = self.config.get_last_operation()
+            if last_operation and last_operation in all_operations:
+                self.set_operation(last_operation)
+            elif all_operations:
+                # Select first operation if available
                 first_item = self.operation_tree.topLevelItem(0)
                 if first_item:
                     self.operation_tree.setCurrentItem(first_item)
@@ -276,6 +282,9 @@ class OperationSelector(QWidget):
             # Get operation from registry
             operation = operation_registry.get_operation(operation_name)
             self.current_operation_name = operation_name
+            
+            # Save last operation to config
+            self.config.set_last_operation(operation_name)
             
             # Update description
             self.operation_description.setText(operation.description)

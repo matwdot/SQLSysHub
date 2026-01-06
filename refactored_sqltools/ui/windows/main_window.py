@@ -66,15 +66,32 @@ class MainWindow(QMainWindow):
         screen_width = screen.width()
         screen_height = screen.height()
         
-        # Calculate responsive window size (80% of screen, with limits)
-        window_width = min(max(900, int(screen_width * 0.8)), 1400)
-        window_height = min(max(600, int(screen_height * 0.8)), 900)
+        # Load window geometry from config
+        geometry = self.config.get_window_geometry()
         
-        # Center window on screen
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
+        # Use saved geometry or calculate defaults
+        if geometry.get('maximized', False):
+            window_width = min(max(900, int(screen_width * 0.8)), 1400)
+            window_height = min(max(600, int(screen_height * 0.8)), 900)
+            x = (screen_width - window_width) // 2
+            y = (screen_height - window_height) // 2
+        else:
+            window_width = geometry.get('width', 1200)
+            window_height = geometry.get('height', 800)
+            x = geometry.get('x', (screen_width - window_width) // 2)
+            y = geometry.get('y', (screen_height - window_height) // 2)
+            
+            # Ensure window is within screen bounds
+            if x < 0 or x + window_width > screen_width:
+                x = (screen_width - window_width) // 2
+            if y < 0 or y + window_height > screen_height:
+                y = (screen_height - window_height) // 2
         
         self.setGeometry(x, y, window_width, window_height)
+        
+        # Maximize if saved as maximized
+        if geometry.get('maximized', False):
+            self.showMaximized()
         
         # Set minimum size to prevent layout breaking
         self.setMinimumSize(800, 550)
@@ -588,13 +605,50 @@ class MainWindow(QMainWindow):
         # Confirm operation
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Confirmar Operacao")
-        msg_box.setText(f"Deseja realmente executar a operacao:")
-        msg_box.setInformativeText(f"{operation_name}\n\n{operation['description']}")
-        msg_box.setIcon(QMessageBox.Question)
+        msg_box.setTextFormat(Qt.RichText)
+        msg_box.setText(f"""<b> Deseja realmente executar a operação abaixo?</b><br>
+<span style='color: #c0392b;'>→ {operation_name}</span>""")
+        msg_box.setIcon(QMessageBox.Warning)
         
         # Custom buttons in Portuguese
         sim_btn = msg_box.addButton("Sim", QMessageBox.YesRole)
-        nao_btn = msg_box.addButton("Nao", QMessageBox.NoRole)
+        nao_btn = msg_box.addButton("Não", QMessageBox.NoRole)
+        
+        # Estilo base para ambos os botões
+        button_style = """
+            QPushButton {
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 20px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+        """
+        
+        sim_btn.setStyleSheet(button_style + """
+            QPushButton {
+                background-color: #3498db;
+            }
+            QPushButton:hover {
+                background-color: #2980b9;
+            }
+            QPushButton:pressed {
+                background-color: #21618c;
+            }
+        """)
+        
+        nao_btn.setStyleSheet(button_style + """
+            QPushButton {
+                background-color: #c0392b;
+            }
+            QPushButton:hover {
+                background-color: #e74c3c;
+            }
+            QPushButton:pressed {
+                background-color: #a93226;
+            }
+        """)
         
         # Style the message box
         msg_box.setStyleSheet("""
@@ -606,21 +660,6 @@ class MainWindow(QMainWindow):
             QMessageBox QLabel {
                 color: #2c3e50;
                 padding: 10px;
-            }
-            QMessageBox QPushButton {
-                background-color: #3498db;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 20px;
-                font-weight: bold;
-                min-width: 80px;
-            }
-            QMessageBox QPushButton:hover {
-                background-color: #2980b9;
-            }
-            QMessageBox QPushButton:pressed {
-                background-color: #21618c;
             }
         """)
         
@@ -788,5 +827,29 @@ class MainWindow(QMainWindow):
     
     def closeEvent(self, event):
         """Handle window close event"""
+        # Save window geometry before closing
+        self._save_window_geometry()
         self.cleanup()
         event.accept()
+    
+    def _save_window_geometry(self):
+        """Save current window geometry to config"""
+        try:
+            is_maximized = self.isMaximized()
+            if is_maximized:
+                # When maximized, save the normal geometry
+                geometry = self.normalGeometry()
+                width = geometry.width()
+                height = geometry.height()
+                x = geometry.x()
+                y = geometry.y()
+            else:
+                width = self.width()
+                height = self.height()
+                x = self.x()
+                y = self.y()
+            
+            self.config.save_window_geometry(width, height, x, y, is_maximized)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to save window geometry: {e}")

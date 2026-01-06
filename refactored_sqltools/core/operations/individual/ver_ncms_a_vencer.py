@@ -340,9 +340,7 @@ ROWS {offset} TO {limit};"""
         NÃO filtra por vigência do banco - isso será feito pelo arquivo JSON.
         """
         return """WITH vendas_ano AS (
-    SELECT 
-        i.PROCOD,
-        SUM(i.ITVQTDVDA) AS QTD_VENDIDA
+    SELECT i.PROCOD, SUM(i.ITVQTDVDA) AS QTD_VENDIDA
     FROM ITEVDA i
     WHERE i.TRNDAT >= DATEADD(-365 DAY TO CURRENT_DATE)
       AND i.ITVQTDVDA > 0
@@ -358,8 +356,7 @@ FROM PRODUTO p
 LEFT JOIN vendas_ano v ON v.PROCOD = p.PROCOD
 WHERE p.PRONCM IS NOT NULL
   AND TRIM(p.PRONCM) <> ''
-ORDER BY
-    COALESCE(v.QTD_VENDIDA, 0) DESC;"""
+ORDER BY 4 DESC;"""
     
     def get_check_sql(self) -> str:
         """SQL para verificar o total de produtos com NCM."""
