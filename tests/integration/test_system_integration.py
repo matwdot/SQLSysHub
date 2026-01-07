@@ -100,8 +100,7 @@ class TestSystemIntegration:
             "Corrigir Erro de Equipamento",
             "Limpar Tabelas do Fisco",
             "Consultar NCM Inexistente",
-            "Ver NCMs a Vencer",
-            "Buscar Produto por Código"
+            "Ver NCMs a Vencer"
         }
         
         operation_names = set(operations.keys())

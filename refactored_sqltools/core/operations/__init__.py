@@ -13,7 +13,6 @@ from .individual.corrigir_erro_equipamento import CorrigirErroEquipamentoOperati
 from .individual.limpar_tabelas_fisco import LimparTabelasFiscoOperation
 from .individual.consultar_ncm_inexistente import ConsultarNCMInexistenteOperation
 from .individual.ver_ncms_a_vencer import VerNCMsAVencerOperation
-from .individual.buscar_produto_codigo import BuscarProdutoCodigoOperation
 
 __all__ = [
     'BaseOperation', 
@@ -27,6 +26,5 @@ __all__ = [
     'CorrigirErroEquipamentoOperation',
     'LimparTabelasFiscoOperation',
     'ConsultarNCMInexistenteOperation',
-    'VerNCMsAVencerOperation',
-    'BuscarProdutoCodigoOperation'
+    'VerNCMsAVencerOperation'
 ]

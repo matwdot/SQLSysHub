@@ -15,7 +15,6 @@ from .individual.corrigir_erro_equipamento import CorrigirErroEquipamentoOperati
 from .individual.limpar_tabelas_fisco import LimparTabelasFiscoOperation
 from .individual.consultar_ncm_inexistente import ConsultarNCMInexistenteOperation
 from .individual.ver_ncms_a_vencer import VerNCMsAVencerOperation
-from .individual.buscar_produto_codigo import BuscarProdutoCodigoOperation
 
 
 class OperationRegistry:
@@ -31,8 +30,7 @@ class OperationRegistry:
             "Server": [
                 "Limpar Tabelas do Fisco",
                 "Consultar NCM Inexistente",
-                "Ver NCMs a Vencer",
-                "Buscar Produto por Código"
+                "Ver NCMs a Vencer"
             ],
             "Ambos": [
                 "Apagar Certificado"
@@ -46,8 +44,7 @@ class OperationRegistry:
             "SysPDV Server": [
                 "Limpar Tabelas do Fisco",
                 "Consultar NCM Inexistente",
-                "Ver NCMs a Vencer",
-                "Buscar Produto por Código"
+                "Ver NCMs a Vencer"
             ],
             "Outros": [
                 "Apagar Certificado"
@@ -64,7 +61,6 @@ class OperationRegistry:
             LimparTabelasFiscoOperation(),
             ConsultarNCMInexistenteOperation(),
             VerNCMsAVencerOperation(),
-            BuscarProdutoCodigoOperation(),
         ]
         
         for operation in operations:
@@ -243,15 +239,6 @@ class OperationRegistry:
                     "description": "Número da página a ser exibida"
                 }
             },
-            "Buscar Produto por Código": {
-                "codigo_produto": {
-                    "type": "text",
-                    "label": "Código do Produto",
-                    "placeholder": "Digite o código do produto",
-                    "description": "Código único do produto no sistema",
-                    "required": True
-                }
-            }
         }
         
         return parameter_configs.get(name, {})

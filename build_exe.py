@@ -231,7 +231,6 @@ hidden_imports = [
     'refactored_sqltools.core.operations.registry',
     'refactored_sqltools.core.operations.individual',
     'refactored_sqltools.core.operations.individual.apagar_certificado',
-    'refactored_sqltools.core.operations.individual.buscar_produto_codigo',
     'refactored_sqltools.core.operations.individual.cancelar_cupom',
     'refactored_sqltools.core.operations.individual.consultar_ncm_inexistente',
     'refactored_sqltools.core.operations.individual.corrigir_erro_equipamento',

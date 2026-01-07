@@ -77,8 +77,7 @@ class TestFinalVerification:
             "Corrigir Erro de Equipamento",
             "Limpar Tabelas do Fisco",
             "Consultar NCM Inexistente",
-            "Ver NCMs a Vencer",
-            "Buscar Produto por Código"
+            "Ver NCMs a Vencer"
         }
         
         missing_operations = key_operations - operation_names
