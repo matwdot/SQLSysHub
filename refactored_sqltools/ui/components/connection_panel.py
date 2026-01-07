@@ -116,8 +116,8 @@ class ConnectionPanel(QWidget):
         # Connect button
         self.connect_btn = QPushButton("Conectar")
         self.connect_btn.clicked.connect(self.handle_connection)
-        self.connect_btn.setMinimumHeight(28)
-        self.connect_btn.setMaximumHeight(34)
+        self.connect_btn.setMinimumHeight(24)
+        self.connect_btn.setMaximumHeight(28)
         connection_layout.addWidget(self.connect_btn, row, 0, 1, 2)
         row += 1
         

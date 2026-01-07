@@ -53,8 +53,8 @@ class OperationSelector(QWidget):
         operation_group = QGroupBox("Selecione a Operação")
         operation_group.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         operation_layout = QVBoxLayout(operation_group)
-        operation_layout.setContentsMargins(8, 12, 8, 8)
-        operation_layout.setSpacing(4)
+        operation_layout.setContentsMargins(6, 10, 6, 4)
+        operation_layout.setSpacing(2)
         
         # Filter checkboxes - more compact
         filter_layout = QHBoxLayout()
@@ -193,6 +193,11 @@ class OperationSelector(QWidget):
             }
             QTreeWidget::item:hover {
                 background-color: #ebf5fb;
+                color: #2c3e50;
+            }
+            QTreeWidget::item:selected:hover {
+                background-color: #2980b9;
+                color: white;
             }
             QTreeWidget:hover {
                 border: 1px solid #3498db;

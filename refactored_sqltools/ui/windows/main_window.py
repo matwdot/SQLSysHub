@@ -175,7 +175,7 @@ class MainWindow(QMainWindow):
         self.sidebar_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         sidebar_layout = QVBoxLayout(self.sidebar_widget)
         sidebar_layout.setContentsMargins(2, 2, 2, 2)
-        sidebar_layout.setSpacing(6)
+        sidebar_layout.setSpacing(3)
         
         # Connection panel
         self.connection_panel = ConnectionPanel()
@@ -191,23 +191,25 @@ class MainWindow(QMainWindow):
         self.execute_btn = QPushButton()
         play_icon = qta.icon('fa5s.play', color='white')
         self.execute_btn.setIcon(play_icon)
-        self.execute_btn.setIconSize(QSize(14, 14))
+        self.execute_btn.setIconSize(QSize(12, 12))
         self.execute_btn.setText(" Executar")
         self.execute_btn.clicked.connect(self.execute_operation)
         self.execute_btn.setEnabled(False)
-        self.execute_btn.setMinimumHeight(36)
-        self.execute_btn.setMaximumHeight(42)
+        self.execute_btn.setMinimumHeight(22)
+        self.execute_btn.setMaximumHeight(26)
         self.execute_btn.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 #3498db, stop:1 #2980b9);
                 color: white;
                 border: none;
-                border-radius: 6px;
-                padding: 8px;
-                font-size: 12px;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 11px;
                 font-weight: bold;
                 text-align: center;
+                min-height: 18px;
+                max-height: 22px;
             }
             QPushButton:hover {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
