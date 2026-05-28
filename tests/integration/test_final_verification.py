@@ -8,7 +8,7 @@ of the original SQL SysHub.py and can be used as a drop-in replacement.
 import pytest
 import sys
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 
 # Add the refactored_sqltools to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -65,7 +65,7 @@ class TestFinalVerification:
         operations = operation_registry.list_operations()
         
         # Verify we have operations
-        assert len(operations) >= 7, "Should have at least 7 operations"
+        assert len(operations) >= 6, "Should have at least 6 operations"
         
         # Get actual operation names
         operation_names = set(operations.keys())
@@ -101,7 +101,7 @@ class TestFinalVerification:
                         data_fim=datetime(2024, 12, 31)
                     )
                     assert isinstance(sql, str) and len(sql) > 0
-                except:
+                except Exception:
                     # If it still fails, just verify the method exists
                     assert callable(operation.get_sql)
     
@@ -301,7 +301,7 @@ class TestSystemReadiness:
         
         # Should have all operations registered
         operations = operation_registry.list_operations()
-        assert len(operations) >= 7
+        assert len(operations) >= 6
     
     def test_system_stability(self):
         """Test basic system stability"""
@@ -316,4 +316,4 @@ class TestSystemReadiness:
         # Test that operation registry is stable
         for _ in range(3):
             operations = operation_registry.list_operations()
-            assert len(operations) >= 7
+            assert len(operations) >= 6

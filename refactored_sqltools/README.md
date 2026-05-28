@@ -49,14 +49,11 @@ The project uses a dual testing approach:
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run all tests with the standard library runner
+python -m unittest discover -s tests
+
+# Optional, if pytest is installed
 python -m pytest
-
-# Run unit tests only
-python -m pytest tests/unit/
-
-# Run with coverage
-python -m pytest --cov=refactored_sqltools
 ```
 
 ## Requirements

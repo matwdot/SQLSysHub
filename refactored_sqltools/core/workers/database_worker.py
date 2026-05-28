@@ -1,49 +1,27 @@
 """
 Database worker thread for asynchronous database operations.
-
-This module provides a worker thread implementation that handles database
-operations asynchronously, with proper progress reporting, error handling,
-and resource cleanup.
 """
 
-from typing import Any, Optional, Tuple
+import logging
+from typing import Any, Optional
+
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from ..database.manager import DatabaseManager
-from ..database.drivers.base import QueryResult
-from ...utils.exceptions import SQLSysHubException, ConnectionError, QueryExecutionError
+from ...utils.exceptions import ConnectionError, QueryExecutionError, SQLSysHubException
+
+
+logger = logging.getLogger(__name__)
 
 
 class DatabaseWorker(QThread):
-    """
-    Worker thread for executing database operations asynchronously.
-    
-    This class handles database operations in a separate thread to prevent
-    UI blocking, with proper progress reporting and error handling.
-    
-    Signals:
-        finished: Emitted when operation completes (success: bool, message: str, result: Any)
-        progress: Emitted during operation progress (value: int)
-        error: Emitted when an error occurs (error_message: str)
-    """
-    
-    # Signals for communication with main thread
-    finished = pyqtSignal(bool, str, object)  # success, message, result
-    progress = pyqtSignal(int)  # progress value (0-100)
-    error = pyqtSignal(str)  # error message
-    
-    def __init__(self, db_manager: DatabaseManager, operation: str, 
-                 operation_name: str, *args, **kwargs):
-        """
-        Initialize the database worker.
-        
-        Args:
-            db_manager (DatabaseManager): Database manager instance
-            operation (str): Operation type ('connect', 'execute_query', 'disconnect')
-            operation_name (str): Human-readable operation name for logging
-            *args: Operation-specific arguments
-            **kwargs: Operation-specific keyword arguments
-        """
+    """Worker thread for database operations."""
+
+    finished = pyqtSignal(bool, str, object)
+    progress = pyqtSignal(int)
+    error = pyqtSignal(str)
+
+    def __init__(self, db_manager: DatabaseManager, operation: str, operation_name: str, *args, **kwargs):
         super().__init__()
         self.db_manager = db_manager
         self.operation = operation
@@ -51,339 +29,226 @@ class DatabaseWorker(QThread):
         self.args = args
         self.kwargs = kwargs
         self._cleanup_required = False
-    
+        self._local_db_manager = None
+
     def run(self) -> None:
-        """
-        Execute the database operation in the worker thread.
-        
-        This method runs in a separate thread and handles different types
-        of database operations with proper error handling and progress reporting.
-        """
         try:
-            self.progress.emit(10)  # Initial progress
-            
-            if self.operation == 'connect':
+            self.progress.emit(10)
+
+            if self.operation == "connect":
                 self._handle_connect_operation()
-            elif self.operation == 'execute_query':
+            elif self.operation == "execute_query":
                 self._handle_execute_query_operation()
-            elif self.operation == 'custom_operation':
+            elif self.operation == "custom_operation":
                 self._handle_custom_operation()
-            elif self.operation == 'disconnect':
+            elif self.operation == "disconnect":
                 self._handle_disconnect_operation()
             else:
-                raise ValueError(f"Operação desconhecida: {self.operation}")
-                
-        except SQLSysHubException as e:
+                raise ValueError(f"Operacao desconhecida: {self.operation}")
+        except SQLSysHubException as exc:
             self.progress.emit(100)
-            self.error.emit(str(e))
-            self.finished.emit(False, str(e), None)
-        except Exception as e:
+            self.error.emit(str(exc))
+            self.finished.emit(False, str(exc), None)
+        except Exception as exc:
             self.progress.emit(100)
-            error_msg = f"Erro inesperado em {self.operation_name}: {str(e)}"
+            error_msg = f"Erro inesperado em {self.operation_name}: {exc}"
             self.error.emit(error_msg)
             self.finished.emit(False, error_msg, None)
         finally:
             self._cleanup_resources()
-    
+
     def _handle_connect_operation(self) -> None:
-        """
-        Handle database connection operation.
-        
-        Expected args: (db_type, host, port, username, password, database)
-        """
         if len(self.args) < 6:
-            raise ValueError("Operação de conexão requer 6 argumentos: db_type, host, port, username, password, database")
-        
+            raise ValueError("Operacao de conexao requer db_type, host, port, username, password e database")
+
         db_type, host, port, username, password, database = self.args[:6]
-        
+
         self.progress.emit(30)
-        
-        # Prepare connection parameters
         connection_params = {
-            'host': host,
-            'port': port,
-            'username': username,
-            'password': password,
-            'database': database
+            "host": host,
+            "port": port,
+            "username": username,
+            "password": password,
+            "database": database,
         }
-        
+
         self.progress.emit(50)
-        
+
         try:
-            # Attempt connection
-            success = self.db_manager.connect(db_type, **connection_params)
-            
-            self.progress.emit(90)
-            
+            # This is a thread-local connection test. The resulting connection
+            # is closed before the worker finishes and is not shared with the UI.
+            test_manager = DatabaseManager()
+            success = test_manager.connect(db_type, **connection_params)
+            test_manager.disconnect_all()
+
+            self.progress.emit(100)
             if success:
-                self.progress.emit(100)
-                message = f"Conectado com sucesso ao banco: {db_type}"
-                self.finished.emit(True, message, None)
+                self.finished.emit(True, f"Conectado com sucesso ao banco: {db_type}", None)
             else:
-                self.progress.emit(100)
-                message = f"Falha ao conectar ao banco: {db_type}"
-                self.finished.emit(False, message, None)
-                
-        except ConnectionError as e:
+                self.finished.emit(False, f"Falha ao conectar ao banco: {db_type}", None)
+        except ConnectionError as exc:
             self.progress.emit(100)
-            # Usar a mensagem de erro diretamente do driver
-            self.finished.emit(False, str(e), None)
-    
+            self.finished.emit(False, str(exc), None)
+
     def _handle_execute_query_operation(self) -> None:
-        """
-        Handle query execution operation.
-        
-        Expected args: (query,) and optional kwargs: (db_type,)
-        """
         if len(self.args) < 1:
-            raise ValueError("Operação de execução de query requer pelo menos 1 argumento: query")
-        
+            raise ValueError("Operacao de execucao de query requer uma query")
+
         query = self.args[0]
-        db_type = self.kwargs.get('db_type', None)
-        
+        db_type = self.kwargs.get("db_type")
+
         self.progress.emit(20)
-        
+
         try:
-            # Check connection
-            if not self.db_manager.is_connected(db_type):
-                db_name = db_type if db_type else "current database"
-                raise ConnectionError(f"Não conectado ao {db_name}")
-            
+            manager = self._create_operation_manager()
             self.progress.emit(40)
-            
-            # Execute query
-            result = self.db_manager.execute_query(query, db_type)
-            
-            self.progress.emit(80)
-            
-            if result.success:
-                self.progress.emit(100)
-                self.finished.emit(True, result.message, result)
-            else:
-                self.progress.emit(100)
-                self.finished.emit(False, result.message, result)
-                
-        except (ConnectionError, QueryExecutionError) as e:
+
+            result = manager.execute_query(query, db_type)
             self.progress.emit(100)
-            # Usar a mensagem de erro diretamente do driver, sem adicionar prefixo duplicado
-            self.finished.emit(False, str(e), None)
-    
+            self.finished.emit(result.success, result.message, result)
+        except (ConnectionError, QueryExecutionError) as exc:
+            self.progress.emit(100)
+            self.finished.emit(False, str(exc), None)
+
     def _handle_custom_operation(self) -> None:
-        """
-        Handle custom operation execution (operations with custom execute method).
-        
-        Expected kwargs: operation_instance, parameters
-        """
-        operation_instance = self.kwargs.get('operation_instance')
-        parameters = self.kwargs.get('parameters', {})
-        
+        operation_instance = self.kwargs.get("operation_instance")
+        parameters = self.kwargs.get("parameters", {})
+
         if not operation_instance:
-            raise ValueError("Operação customizada requer operation_instance")
-        
+            raise ValueError("Operacao customizada requer operation_instance")
+
         self.progress.emit(20)
-        
+
         try:
-            # Check connection
-            if not self.db_manager.is_connected():
-                raise ConnectionError("Não conectado ao banco de dados")
-            
+            manager = self._create_operation_manager()
             self.progress.emit(40)
-            
-            # Execute custom operation
-            result = operation_instance.execute(self.db_manager, **parameters)
-            
+
+            result = operation_instance.execute(manager, **parameters)
             self.progress.emit(80)
-            
-            # Convert OperationResult to QueryResult for compatibility
+
             from ..database.drivers.base import QueryResult
+
             query_result = QueryResult(
                 success=result.success,
                 message=result.message,
                 columns=result.columns,
                 data=result.data,
-                rows_affected=result.rows_affected
+                rows_affected=result.rows_affected,
             )
-            
+
             self.progress.emit(100)
-            
-            if result.success:
-                self.finished.emit(True, result.message, query_result)
-            else:
-                self.finished.emit(False, result.message, query_result)
-                
-        except Exception as e:
+            self.finished.emit(result.success, result.message, query_result)
+        except Exception as exc:
             self.progress.emit(100)
-            import traceback
-            traceback.print_exc()
-            self.finished.emit(False, f"Erro na operação: {str(e)}", None)
-    
+            logger.exception("Erro na operacao customizada %s", self.operation_name)
+            self.finished.emit(False, f"Erro na operacao: {exc}", None)
+
     def _handle_disconnect_operation(self) -> None:
-        """
-        Handle database disconnection operation.
-        
-        Optional args: (db_type,) - if not provided, disconnects current driver
-        """
-        db_type = self.args[0] if self.args else None
-        
-        self.progress.emit(50)
-        
-        try:
-            if db_type:
-                self.db_manager.disconnect(db_type)
-                message = f"Desconectado do {db_type}."
-            else:
-                self.db_manager.disconnect()
-                message = "Desconectado do banco de dados."
-            
-            self.progress.emit(100)
-            self.finished.emit(True, message, None)
-            
-        except Exception as e:
-            self.progress.emit(100)
-            message = f"Falha ao desconectar: {str(e)}"
-            self.finished.emit(False, message, None)
-    
+        self.progress.emit(100)
+        self.finished.emit(True, "Desconectado do banco de dados.", None)
+
+    def _create_operation_manager(self) -> DatabaseManager:
+        """Create a thread-local manager when connection_config is provided."""
+        connection_config = self.kwargs.get("connection_config")
+        if not connection_config:
+            if not self.db_manager.is_connected():
+                raise ConnectionError("Nao conectado ao banco de dados")
+            return self.db_manager
+
+        self._local_db_manager = DatabaseManager()
+        db_type = connection_config["db_type"]
+        params = {
+            "host": connection_config["host"],
+            "port": connection_config["port"],
+            "username": connection_config["username"],
+            "password": connection_config["password"],
+            "database": connection_config["database"],
+        }
+        self._local_db_manager.connect(db_type, **params)
+        return self._local_db_manager
+
     def _cleanup_resources(self) -> None:
-        """
-        Clean up any resources used by the worker thread.
-        
-        This method ensures proper cleanup of resources even if
-        the operation fails or is interrupted.
-        """
         try:
-            # Mark cleanup as completed
+            if self._local_db_manager:
+                self._local_db_manager.disconnect_all()
+                self._local_db_manager = None
             self._cleanup_required = False
-            
-            # Additional cleanup can be added here if needed
-            # For example, closing temporary files, clearing caches, etc.
-            
-        except Exception as e:
-            # Log cleanup errors but don't propagate them
-            # as the main operation may have succeeded
-            print(f"Aviso: Erro de limpeza no DatabaseWorker: {e}")
-    
+        except Exception as exc:
+            logger.warning("Erro de limpeza no DatabaseWorker: %s", exc)
+
     def stop(self) -> None:
-        """
-        Request the worker to stop its current operation.
-        
-        This method provides a way to gracefully stop the worker thread
-        if needed, though database operations should generally be allowed
-        to complete.
-        """
         if self.isRunning():
             self.requestInterruption()
             self._cleanup_required = True
-    
+
     def get_operation_info(self) -> dict:
-        """
-        Get information about the current operation.
-        
-        Returns:
-            dict: Dictionary containing operation details
-        """
         return {
-            'operation': self.operation,
-            'operation_name': self.operation_name,
-            'args_count': len(self.args),
-            'kwargs_count': len(self.kwargs),
-            'is_running': self.isRunning(),
-            'cleanup_required': self._cleanup_required
+            "operation": self.operation,
+            "operation_name": self.operation_name,
+            "args_count": len(self.args),
+            "kwargs_count": len(self.kwargs),
+            "is_running": self.isRunning(),
+            "cleanup_required": self._cleanup_required,
         }
 
 
 class DatabaseWorkerFactory:
-    """
-    Factory class for creating DatabaseWorker instances.
-    
-    This factory provides convenient methods for creating workers
-    for common database operations.
-    """
-    
+    """Factory for common worker configurations."""
+
     @staticmethod
-    def create_connection_worker(db_manager: DatabaseManager, db_type: str,
-                               host: str, port: str, username: str, 
-                               password: str, database: str) -> DatabaseWorker:
-        """
-        Create a worker for database connection operation.
-        
-        Args:
-            db_manager (DatabaseManager): Database manager instance
-            db_type (str): Database type
-            host (str): Database host
-            port (str): Database port
-            username (str): Database username
-            password (str): Database password
-            database (str): Database name
-            
-        Returns:
-            DatabaseWorker: Configured worker for connection operation
-        """
+    def create_connection_worker(
+        db_manager: DatabaseManager,
+        db_type: str,
+        host: str,
+        port: str,
+        username: str,
+        password: str,
+        database: str,
+    ) -> DatabaseWorker:
         return DatabaseWorker(
-            db_manager, 'connect', f'Connect to {db_type}',
-            db_type, host, port, username, password, database
+            db_manager,
+            "connect",
+            f"Connect to {db_type}",
+            db_type,
+            host,
+            port,
+            username,
+            password,
+            database,
         )
-    
+
     @staticmethod
-    def create_query_worker(db_manager: DatabaseManager, query: str,
-                          operation_name: str = "Execute Query",
-                          db_type: Optional[str] = None) -> DatabaseWorker:
-        """
-        Create a worker for query execution operation.
-        
-        Args:
-            db_manager (DatabaseManager): Database manager instance
-            query (str): SQL query to execute
-            operation_name (str): Human-readable operation name
-            db_type (Optional[str]): Database type (uses current if None)
-            
-        Returns:
-            DatabaseWorker: Configured worker for query execution
-        """
-        kwargs = {'db_type': db_type} if db_type else {}
-        return DatabaseWorker(
-            db_manager, 'execute_query', operation_name,
-            query, **kwargs
-        )
-    
+    def create_query_worker(
+        db_manager: DatabaseManager,
+        query: str,
+        operation_name: str = "Execute Query",
+        db_type: Optional[str] = None,
+        connection_config: Optional[dict] = None,
+    ) -> DatabaseWorker:
+        kwargs = {"db_type": db_type} if db_type else {}
+        if connection_config:
+            kwargs["connection_config"] = connection_config
+        return DatabaseWorker(db_manager, "execute_query", operation_name, query, **kwargs)
+
     @staticmethod
-    def create_disconnect_worker(db_manager: DatabaseManager,
-                               db_type: Optional[str] = None) -> DatabaseWorker:
-        """
-        Create a worker for database disconnection operation.
-        
-        Args:
-            db_manager (DatabaseManager): Database manager instance
-            db_type (Optional[str]): Database type (disconnects current if None)
-            
-        Returns:
-            DatabaseWorker: Configured worker for disconnection operation
-        """
+    def create_disconnect_worker(db_manager: DatabaseManager, db_type: Optional[str] = None) -> DatabaseWorker:
         args = (db_type,) if db_type else ()
-        operation_name = f'Disconnect from {db_type}' if db_type else 'Disconnect'
-        
-        return DatabaseWorker(
-            db_manager, 'disconnect', operation_name, *args
-        )
-    
+        operation_name = f"Disconnect from {db_type}" if db_type else "Disconnect"
+        return DatabaseWorker(db_manager, "disconnect", operation_name, *args)
+
     @staticmethod
-    def create_custom_operation_worker(db_manager: DatabaseManager,
-                                       operation_instance: Any,
-                                       operation_name: str,
-                                       parameters: dict = None) -> DatabaseWorker:
-        """
-        Create a worker for custom operation execution.
-        
-        Args:
-            db_manager (DatabaseManager): Database manager instance
-            operation_instance: Operation instance with execute method
-            operation_name (str): Human-readable operation name
-            parameters (dict): Parameters to pass to the operation
-            
-        Returns:
-            DatabaseWorker: Configured worker for custom operation
-        """
+    def create_custom_operation_worker(
+        db_manager: DatabaseManager,
+        operation_instance: Any,
+        operation_name: str,
+        parameters: Optional[dict] = None,
+        connection_config: Optional[dict] = None,
+    ) -> DatabaseWorker:
         return DatabaseWorker(
-            db_manager, 'custom_operation', operation_name,
+            db_manager,
+            "custom_operation",
+            operation_name,
             operation_instance=operation_instance,
-            parameters=parameters or {}
+            parameters=parameters or {},
+            connection_config=connection_config,
         )

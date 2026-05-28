@@ -21,6 +21,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 from PyQt5.QtCore import Qt
 from refactored_sqltools.ui.windows.main_window import MainWindow
 from refactored_sqltools.ui.windows.splash_screen import SplashScreen
+from refactored_sqltools.ui.theme_manager import ThemeManager
 
 
 def setup_logging(debug: bool = False):
@@ -109,6 +110,9 @@ def main():
         if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
             app.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
         
+        # Initialize theme before splash screen
+        ThemeManager.get_instance()
+
         # Show splash screen with system checks
         logger.info("Showing splash screen...")
         splash = SplashScreen()
@@ -159,36 +163,43 @@ def main():
                 # Custom OK button
                 ok_btn = msg_box.addButton("OK", QMessageBox.AcceptRole)
                 
-                # Style the message box
-                msg_box.setStyleSheet("""
-                    QMessageBox {
-                        background-color: white;
-                        color: #2c3e50;
+                # Style the message box with theme awareness
+                dark = isDarkTheme()
+                bg_color = "#2d2d3d" if dark else "white"
+                text_color = "#e2e8f0" if dark else "#2c3e50"
+                button_bg = "#e74c3c" if not dark else "#c0392b"
+                button_hover = "#c0392b" if not dark else "#e74c3c"
+                button_pressed = "#a93226" if not dark else "#923121"
+                
+                msg_box.setStyleSheet(f"""
+                    QMessageBox {{
+                        background-color: {bg_color};
+                        color: {text_color};
                         font-size: 12px;
-                    }
-                    QMessageBox QLabel {
-                        color: #2c3e50;
+                    }}
+                    QMessageBox QLabel {{
+                        color: {text_color};
                         padding: 10px;
-                    }
-                    QMessageBox QPushButton {
-                        background-color: #e74c3c;
+                    }}
+                    QMessageBox QPushButton {{
+                        background-color: {button_bg};
                         color: white;
                         border: none;
                         border-radius: 6px;
                         padding: 8px 20px;
                         font-weight: bold;
                         min-width: 80px;
-                    }
-                    QMessageBox QPushButton:hover {
-                        background-color: #c0392b;
-                    }
-                    QMessageBox QPushButton:pressed {
-                        background-color: #a93226;
-                    }
+                    }}
+                    QMessageBox QPushButton:hover {{
+                        background-color: {button_hover};
+                    }}
+                    QMessageBox QPushButton:pressed {{
+                        background-color: {button_pressed};
+                    }}
                 """)
                 
                 msg_box.exec_()
-        except:
+        except Exception:
             pass
         
         return 1

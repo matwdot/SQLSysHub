@@ -4,149 +4,29 @@ Enhanced Parameters Widget - Versão Compacta
 Componentes compactos para entrada de parâmetros.
 """
 
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox,
-                            QCheckBox, QSlider)
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider)
 from PyQt5.QtCore import Qt, QDate, pyqtSignal
-from PyQt5.QtGui import QIntValidator
+
+from qfluentwidgets import (LineEdit, SpinBox, DoubleSpinBox, ComboBox,
+                           CheckBox, Slider)
 
 from .styled_calendar import StyledDateEdit, DateRangeWidget
 
 
-class EnhancedSpinBox(QSpinBox):
+class EnhancedSpinBox(SpinBox):
     """SpinBox compacto"""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet("""
-            QSpinBox {
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                padding: 3px 6px;
-                background-color: white;
-                color: #2c3e50;
-                font-size: 10px;
-                min-height: 18px;
-                max-height: 22px;
-            }
-            QSpinBox:focus { border: 1px solid #3498db; }
-            QSpinBox:hover { border: 1px solid #3498db; }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 14px;
-                border: none;
-                background-color: #f8f9fa;
-                border-radius: 2px;
-                margin: 1px;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background-color: #3498db;
-            }
-            QSpinBox::up-arrow {
-                border-left: 3px solid transparent;
-                border-right: 3px solid transparent;
-                border-bottom: 4px solid #7f8c8d;
-                width: 0; height: 0;
-            }
-            QSpinBox::up-arrow:hover { border-bottom-color: white; }
-            QSpinBox::down-arrow {
-                border-left: 3px solid transparent;
-                border-right: 3px solid transparent;
-                border-top: 4px solid #7f8c8d;
-                width: 0; height: 0;
-            }
-            QSpinBox::down-arrow:hover { border-top-color: white; }
-        """)
 
 
-class EnhancedComboBox(QComboBox):
+class EnhancedComboBox(ComboBox):
     """ComboBox compacto"""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                padding: 3px 6px;
-                background-color: white;
-                color: #2c3e50;
-                font-size: 10px;
-                min-height: 18px;
-                max-height: 22px;
-            }
-            QComboBox:focus { border: 1px solid #3498db; }
-            QComboBox:hover { border: 1px solid #3498db; }
-            QComboBox::drop-down {
-                width: 18px;
-                border: none;
-            }
-            QComboBox::down-arrow {
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 5px solid #7f8c8d;
-                margin-right: 4px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: white;
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                padding: 2px;
-                selection-background-color: #3498db;
-                font-size: 10px;
-            }
-            QComboBox QAbstractItemView::item {
-                padding: 4px 8px;
-                border-radius: 3px;
-            }
-        """)
 
 
-class EnhancedLineEdit(QLineEdit):
+class EnhancedLineEdit(LineEdit):
     """LineEdit compacto"""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #bdc3c7;
-                border-radius: 4px;
-                padding: 3px 6px;
-                background-color: white;
-                color: #2c3e50;
-                font-size: 10px;
-                min-height: 18px;
-                max-height: 22px;
-            }
-            QLineEdit:focus { border: 1px solid #3498db; }
-            QLineEdit:hover { border: 1px solid #3498db; }
-            QLineEdit::placeholder { color: #95a5a6; font-style: italic; }
-        """)
 
 
-class EnhancedCheckBox(QCheckBox):
+class EnhancedCheckBox(CheckBox):
     """CheckBox compacto"""
-    
-    def __init__(self, text="", parent=None):
-        super().__init__(text, parent)
-        self.setStyleSheet("""
-            QCheckBox {
-                font-size: 10px;
-                color: #2c3e50;
-                spacing: 4px;
-            }
-            QCheckBox::indicator {
-                width: 14px;
-                height: 14px;
-                border: 1px solid #bdc3c7;
-                border-radius: 3px;
-                background-color: white;
-            }
-            QCheckBox::indicator:hover { border-color: #3498db; }
-            QCheckBox::indicator:checked {
-                background-color: #3498db;
-                border-color: #3498db;
-            }
-        """)
 
 
 class NumberWithSlider(QWidget):
@@ -167,42 +47,40 @@ class NumberWithSlider(QWidget):
         self.spinbox.valueChanged.connect(self._on_spinbox_changed)
         layout.addWidget(self.spinbox)
         
-        self.slider = QSlider(Qt.Horizontal)
+        self.value_label = QLabel(str(default))
+        self.value_label.setFixedWidth(36)
+        self.value_label.setAlignment(Qt.AlignCenter)
+        self.value_label.setStyleSheet("""
+            QLabel {
+                font-size: 12px;
+                font-weight: bold;
+                color: #e74c3c;
+            }
+        """)
+        layout.addWidget(self.value_label)
+        
+        self.slider = Slider(Qt.Horizontal)
         self.slider.setRange(min_val, max_val)
         self.slider.setValue(default)
         self.slider.setMaximumHeight(18)
         self.slider.valueChanged.connect(self._on_slider_changed)
-        self.slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                height: 4px;
-                background: #ecf0f1;
-                border-radius: 2px;
-            }
-            QSlider::handle:horizontal {
-                background: #3498db;
-                width: 12px;
-                height: 12px;
-                margin: -4px 0;
-                border-radius: 6px;
-            }
-            QSlider::handle:horizontal:hover { background: #2980b9; }
-            QSlider::sub-page:horizontal {
-                background: #3498db;
-                border-radius: 2px;
-            }
-        """)
         layout.addWidget(self.slider, 1)
+    
+    def _update_value_display(self, value):
+        self.value_label.setText(str(value))
     
     def _on_spinbox_changed(self, value):
         self.slider.blockSignals(True)
         self.slider.setValue(value)
         self.slider.blockSignals(False)
+        self._update_value_display(value)
         self.valueChanged.emit(value)
     
     def _on_slider_changed(self, value):
         self.spinbox.blockSignals(True)
         self.spinbox.setValue(value)
         self.spinbox.blockSignals(False)
+        self._update_value_display(value)
         self.valueChanged.emit(value)
     
     def value(self):
@@ -211,6 +89,7 @@ class NumberWithSlider(QWidget):
     def setValue(self, value):
         self.spinbox.setValue(value)
         self.slider.setValue(value)
+        self._update_value_display(value)
 
 
 class ParameterWidgetFactory:
@@ -248,12 +127,11 @@ class ParameterWidgetFactory:
             return widget
         
         elif param_type == 'decimal':
-            widget = QDoubleSpinBox()
+            widget = DoubleSpinBox()
             widget.setRange(param_config.get('min', 0.0), param_config.get('max', 999999.99))
             widget.setDecimals(param_config.get('decimals', 2))
             if default:
                 widget.setValue(float(default))
-            widget.setStyleSheet(EnhancedSpinBox().styleSheet())
             return widget
         
         elif param_type == 'date':

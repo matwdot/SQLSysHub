@@ -35,7 +35,7 @@ class MockDatabaseDriver(DatabaseDriver):
         self._connection = None
         self._cursor = None
     
-    def execute_query(self, query: str) -> QueryResult:
+    def execute_query(self, query: str, params=None) -> QueryResult:
         if not self._is_connected:
             return QueryResult(
                 success=False,
@@ -197,8 +197,10 @@ class TestDatabaseManager:
         """Test manager connection workflow with mocked drivers."""
         manager = DatabaseManager()
         
-        # Mock the driver creation to return our mock
-        with patch.object(manager, 'get_driver') as mock_get_driver:
+        # Mock validation and driver creation
+        with patch('refactored_sqltools.core.database.manager.validate_connection_params') as mock_validate, \
+             patch.object(manager, 'get_driver') as mock_get_driver:
+            mock_validate.return_value = True
             mock_driver = MockDatabaseDriver()
             mock_get_driver.return_value = mock_driver
             

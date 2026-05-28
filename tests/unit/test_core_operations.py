@@ -37,7 +37,7 @@ class MockDatabaseManager:
             'rows_affected': 1
         }
     
-    def execute_query(self, sql: str) -> dict:
+    def execute_query(self, sql: str, params=None) -> dict:
         return self.query_result
 
 
@@ -209,11 +209,11 @@ class TestIndividualOperations:
         with pytest.raises(ValidationError):
             op.validate_params()  # Missing required parameters
         
-        # Test SQL generation with parameters
+        # Test SQL generation with parameters (uses bind params)
         sql = op.get_sql(data_inicio='2024-01-01', data_fim='2024-12-31')
         assert isinstance(sql, str)
-        assert "2024-01-01" in sql
-        assert "2024-12-31" in sql
+        assert "?" in sql
+        assert "BETWEEN" in sql.upper()
     
     def test_all_operations_can_generate_sql(self):
         """Test that all registered operations can generate SQL."""
@@ -236,12 +236,6 @@ class TestIndividualOperations:
                     )
                     assert isinstance(sql, str)
                     assert len(sql) > 0
-                except:
-                    # If still fails, try with product code
-                    try:
-                        sql = operation.get_sql(codigo_produto='12345')
-                        assert isinstance(sql, str)
-                        assert len(sql) > 0
-                    except:
-                        # If all fail, just verify method exists
-                        assert callable(operation.get_sql)
+                except Exception:
+                    # If still fails, just verify method exists
+                    assert callable(operation.get_sql)

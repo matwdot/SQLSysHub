@@ -6,7 +6,7 @@ interface, handling both fdb and firebirdsql driver libraries.
 """
 
 import os
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Sequence
 
 from .base import DatabaseDriver, QueryResult
 from ....utils.exceptions import ConnectionError, QueryExecutionError, DriverImportError
@@ -61,7 +61,7 @@ class FirebirdDriver(DatabaseDriver):
         )
     
     def connect(self, host: str = "localhost", port: str = "3050", 
-                username: str = "SYSDBA", password: str = "masterkey", 
+                username: str = "SYSDBA", password: str = "", 
                 database: str = "", **kwargs) -> bool:
         """
         Connect to Firebird database.
@@ -70,7 +70,7 @@ class FirebirdDriver(DatabaseDriver):
             host (str): Database host (default: localhost)
             port (str): Database port (default: 3050)
             username (str): Database username (default: SYSDBA)
-            password (str): Database password (default: masterkey)
+            password (str): Database password
             database (str): Database path or name
             **kwargs: Additional connection parameters
             
@@ -146,7 +146,7 @@ class FirebirdDriver(DatabaseDriver):
                 self._cursor.close()
             if self._connection:
                 self._connection.close()
-        except:
+        except Exception:
             # Ignore errors during cleanup
             pass
         finally:
@@ -154,7 +154,7 @@ class FirebirdDriver(DatabaseDriver):
             self._cursor = None
             self._is_connected = False
     
-    def execute_query(self, query: str) -> QueryResult:
+    def execute_query(self, query: str, params: Optional[Sequence[Any]] = None) -> QueryResult:
         """
         Execute SQL query on Firebird database.
         
@@ -171,7 +171,10 @@ class FirebirdDriver(DatabaseDriver):
         self._validate_connection()
         
         try:
-            self._cursor.execute(query)
+            if params:
+                self._cursor.execute(query, tuple(params))
+            else:
+                self._cursor.execute(query)
             return self._handle_query_result(query)
             
         except Exception as e:
@@ -179,7 +182,7 @@ class FirebirdDriver(DatabaseDriver):
             if self._connection:
                 try:
                     self._connection.rollback()
-                except:
+                except Exception:
                     pass
             
             raise QueryExecutionError(f"Falha na execução da query Firebird: {str(e)}")
@@ -201,7 +204,7 @@ class FirebirdDriver(DatabaseDriver):
             try:
                 if hasattr(self._driver_module, '__version__'):
                     info['driver_version'] = self._driver_module.__version__
-            except:
+            except Exception:
                 pass
         
         return info

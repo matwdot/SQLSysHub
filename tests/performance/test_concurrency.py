@@ -11,9 +11,8 @@ import threading
 import queue
 import sys
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QThread, QTimer
 
 # Add the refactored_sqltools to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -150,7 +149,7 @@ class TestDatabaseConcurrency:
                                 data_fim='2024-12-31'
                             )
                             assert isinstance(sql, str)
-                        except:
+                        except Exception:
                             # Skip if can't generate
                             pass
                 

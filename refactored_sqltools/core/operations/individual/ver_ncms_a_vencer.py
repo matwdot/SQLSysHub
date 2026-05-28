@@ -22,7 +22,7 @@ class VerNCMsAVencerOperation(BaseOperation):
         )
         self._ncm_cache = None  # Cache para dados do arquivo JSON
     
-    def _fetch_ncm_data_from_api(self) -> Optional[Dict[str, Dict]]:
+    def _load_ncm_data_from_json(self) -> Optional[Dict[str, Dict]]:
         """
         Busca dados de NCMs do arquivo JSON local usando o NCMManager global.
         
@@ -73,7 +73,7 @@ class VerNCMsAVencerOperation(BaseOperation):
         """
         try:
             return datetime.strptime(date_str, '%d/%m/%Y')
-        except:
+        except Exception:
             return None
     
     def _get_ncm_status(self, ncm_code: str, ncm_data: Dict) -> Dict:
@@ -171,7 +171,7 @@ class VerNCMsAVencerOperation(BaseOperation):
             
             # Tentar buscar dados do arquivo JSON
             print("📁 Tentando carregar dados do arquivo JSON local...")
-            ncm_data = self._fetch_ncm_data_from_api()
+            ncm_data = self._load_ncm_data_from_json()
             
             if ncm_data is None:
                 # Fallback: usar dados locais da tabela NCM
@@ -272,7 +272,8 @@ class VerNCMsAVencerOperation(BaseOperation):
             success=True,
             message=f"✅ Consulta executada com dados do arquivo JSON. {len(dados_pagina)} linhas (Total: {len(dados_processados)} NCMs vencidos/a vencer).",
             data=dados_pagina,
-            columns=colunas_resultado
+            columns=colunas_resultado,
+            source="JSON"
         )
     
     def _execute_with_local_data(self, db_manager, **params) -> OperationResult:
@@ -326,7 +327,8 @@ ROWS {offset} TO {limit};"""
                 success=True,
                 message=f"⚠️ Consulta executada com dados do BANCO (arquivo JSON indisponível). {len(data)} linhas.\n\nNota: Dados podem estar desatualizados.",
                 data=data,
-                columns=columns
+                columns=columns,
+                source="BANCO"
             )
         else:
             return OperationResult(

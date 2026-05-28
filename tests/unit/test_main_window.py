@@ -7,7 +7,6 @@ Tests the integration of UI components and main window functionality.
 import pytest
 from unittest.mock import Mock, patch
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtTest import QTest
 from PyQt5.QtCore import Qt
 
 from refactored_sqltools.ui.windows.main_window import MainWindow
@@ -40,13 +39,11 @@ class TestMainWindow:
         assert hasattr(main_window, 'operation_selector')
         assert hasattr(main_window, 'results_display')
         assert hasattr(main_window, 'status_progress')
+        assert hasattr(main_window, 'status_label')
         assert hasattr(main_window, 'db_manager')
-        assert hasattr(main_window, 'status_bar')
         
         # Check initial state
-        assert not main_window.execute_btn.isEnabled()
         assert not main_window.sql_group.isVisible()
-        assert main_window.status_bar.currentMessage() == "Pronto"
     
     def test_component_integration(self, main_window):
         """Test that components are properly integrated"""
@@ -76,12 +73,12 @@ class TestMainWindow:
         
         # Initially hidden
         assert not main_window.sql_group.isVisible()
-        assert main_window.toggle_sql_btn.toolTip() == "Mostrar SQL"
+        assert main_window.toggle_sql_btn.toolTip() == "Mostrar/Ocultar SQL"
         
         # Call toggle method directly (more reliable than mouse click in tests)
         main_window.toggle_sql_display()
         assert main_window.sql_group.isVisible()
-        assert main_window.toggle_sql_btn.toolTip() == "Ocultar SQL"
+        assert main_window.toggle_sql_btn.toolTip() == "Mostrar/Ocultar SQL"
         
         # Toggle back
         main_window.toggle_sql_display()
@@ -90,16 +87,16 @@ class TestMainWindow:
     
     def test_connection_state_handling(self, main_window):
         """Test connection state handling"""
-        # Initially disconnected
-        assert not main_window.execute_btn.isEnabled()
-        
-        # Simulate connection
-        main_window.on_connection_changed(True)
-        assert main_window.execute_btn.isEnabled()
+        # Simulate connection (delegates to operation_selector)
+        from unittest.mock import patch
+        with patch.object(main_window.operation_selector, 'set_execute_enabled') as mock_fn:
+            main_window.on_connection_changed(True)
+            mock_fn.assert_called_with(True)
         
         # Simulate disconnection
-        main_window.on_connection_changed(False)
-        assert not main_window.execute_btn.isEnabled()
+        with patch.object(main_window.operation_selector, 'set_execute_enabled') as mock_fn:
+            main_window.on_connection_changed(False)
+            mock_fn.assert_called_with(False)
     
     def test_sql_update(self, main_window):
         """Test SQL display update"""
@@ -140,24 +137,13 @@ class TestMainWindow:
     
     def test_status_bar_methods(self, main_window):
         """Test status bar message methods"""
-        # Test show_success_status
-        main_window.show_success_status("Test success message")
-        current_message = main_window.status_bar.currentMessage()
-        assert "Test success message" in current_message
+        # Test _set_status updates the status label
+        main_window._set_status("Test status message")
+        assert main_window.status_label.text() == "Test status message"
         
-        # Test show_error_status
-        main_window.show_error_status("Test error message")
-        current_message = main_window.status_bar.currentMessage()
-        assert "Test error message" in current_message
-        
-        # Test show_info_status
-        main_window.show_info_status("Test info message")
-        current_message = main_window.status_bar.currentMessage()
-        assert "Test info message" in current_message
-        
-        # Test show_permanent_status
-        main_window.show_permanent_status("Permanent message")
-        assert main_window.status_bar.currentMessage() == "Permanent message"
+        # Test with different message
+        main_window._set_status("Another message")
+        assert "Another" in main_window.status_label.text()
     
     def test_cleanup_on_close(self, main_window):
         """Test cleanup when window is closed"""

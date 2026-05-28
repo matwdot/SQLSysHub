@@ -34,7 +34,7 @@ def validate_connection_params(db_type: str, **params) -> bool:
     
     if db_type == 'firebird':
         return _validate_firebird_params(**params)
-    elif db_type == 'sqlserver':
+    elif db_type in ('sqlserver', 'sql server'):
         return _validate_sqlserver_params(**params)
     else:
         raise ValidationError(f"Tipo de banco não suportado: {db_type}")
@@ -66,7 +66,7 @@ def _validate_firebird_params(**params) -> bool:
     host = params.get('host', 'localhost')
     port = params.get('port', '3050')
     username = params.get('username', 'SYSDBA')
-    password = params.get('password', 'masterkey')
+    password = params.get('password', '')
     
     # Validate host format
     if not _validate_host_format(host):

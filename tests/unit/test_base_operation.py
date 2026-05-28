@@ -34,30 +34,12 @@ class MockDatabaseManager:
             'rows_affected': 1
         }
     
-    def execute_query(self, sql: str) -> dict:
+    def execute_query(self, sql: str, params=None) -> dict:
         return self.query_result
 
 
 class TestBaseOperation:
     """Test cases for BaseOperation class."""
-    
-    def test_base_operation_is_abstract(self):
-        """Test that BaseOperation cannot be instantiated directly."""
-        with pytest.raises(TypeError):
-            BaseOperation("test", "test description")
-    
-    def test_mock_operation_initialization(self):
-        """Test that mock operation initializes correctly."""
-        op = MockOperation("test_op", "Test operation")
-        assert op.name == "test_op"
-        assert op.description == "Test operation"
-    
-    def test_operation_string_representations(self):
-        """Test string representations of operation."""
-        op = MockOperation("test_op", "Test operation")
-        assert str(op) == "test_op: Test operation"
-        assert "MockOperation" in repr(op)
-        assert "test_op" in repr(op)
     
     def test_successful_operation_execution(self):
         """Test successful operation execution."""

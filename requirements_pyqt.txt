@@ -1,6 +1,6 @@
-# Dependências para a versão PyQt5
+# Dependências para a versão PyQt5 com Fluent Design
 PyQt5>=5.15.0
-qtawesome>=1.0.0
+PyQt-Fluent-Widgets[full]>=1.11.0
 
 # Dependências opcionais para drivers de banco de dados
 # Instale apenas os drivers que você precisa:

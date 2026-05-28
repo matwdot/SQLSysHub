@@ -145,14 +145,11 @@ class TestLargeDataPerformance:
         for operation in operation_list:
             try:
                 sql = operation.get_sql()
-            except:
+            except (KeyError, TypeError):
                 try:
                     sql = operation.get_sql(data_inicio='2024-01-01', data_fim='2024-12-31')
-                except:
-                    try:
-                        sql = operation.get_sql(codigo_produto='12345')
-                    except:
-                        pass  # Skip if can't generate SQL
+                except Exception:
+                    pass  # Skip if can't generate SQL
         
         duration = time.time() - start_time
         
@@ -336,7 +333,7 @@ class TestStressPerformance:
             for operation in operations[:3]:  # Test first 3 operations
                 try:
                     sql = operation.get_sql()
-                except:
+                except Exception:
                     pass  # Skip if requires parameters
         
         duration = time.time() - start_time

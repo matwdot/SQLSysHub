@@ -6,7 +6,7 @@ ensuring consistent behavior across different database types.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, Sequence
 from dataclasses import dataclass
 
 from ....utils.exceptions import ConnectionError, QueryExecutionError
@@ -64,12 +64,13 @@ class DatabaseDriver(ABC):
         pass
     
     @abstractmethod
-    def execute_query(self, query: str) -> QueryResult:
+    def execute_query(self, query: str, params: Optional[Sequence[Any]] = None) -> QueryResult:
         """
         Execute a SQL query and return the results.
         
         Args:
             query (str): SQL query to execute
+            params: Optional query parameters
             
         Returns:
             QueryResult: Object containing query results and metadata
@@ -154,7 +155,7 @@ class DatabaseDriver(ABC):
             if hasattr(self._connection, 'rollback'):
                 try:
                     self._connection.rollback()
-                except:
+                except Exception:
                     pass
             
             # Se já é uma QueryExecutionError, usar a mensagem diretamente

@@ -5,12 +5,13 @@ This module provides a central manager that implements the factory pattern
 for creating and managing different database drivers.
 """
 
-from typing import Dict, Any, Optional, Type
+from typing import Dict, Any, Optional, Type, Sequence
 
 from .drivers.base import DatabaseDriver, QueryResult
 from .drivers.firebird import FirebirdDriver
 from .drivers.sqlserver import SqlServerDriver
 from ...utils.exceptions import ValidationError, ConnectionError
+from ...utils.validators import validate_connection_params
 
 
 class DatabaseManager:
@@ -95,6 +96,8 @@ class DatabaseManager:
             ValidationError: If database type is not supported
             ConnectionError: If connection fails
         """
+        if db_type in ('Firebird', 'SQL Server'):
+            validate_connection_params(db_type, **params)
         driver = self.get_driver(db_type)
         success = driver.connect(**params)
         
@@ -134,7 +137,12 @@ class DatabaseManager:
         self._current_driver = None
         self._current_db_type = None
     
-    def execute_query(self, query: str, db_type: Optional[str] = None) -> QueryResult:
+    def execute_query(
+        self,
+        query: str,
+        db_type: Optional[str] = None,
+        params: Optional[Sequence[Any]] = None,
+    ) -> QueryResult:
         """
         Execute a query using the current or specified driver.
         
@@ -158,7 +166,7 @@ class DatabaseManager:
                 raise ConnectionError("Nenhuma conexão de banco disponível")
             driver = self._current_driver
         
-        return driver.execute_query(query)
+        return driver.execute_query(query, params)
     
     def is_connected(self, db_type: Optional[str] = None) -> bool:
         """

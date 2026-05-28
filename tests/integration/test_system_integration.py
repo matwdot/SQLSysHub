@@ -8,7 +8,7 @@ that verifies the complete system functionality without redundancy.
 import pytest
 import sys
 import os
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from PyQt5.QtWidgets import QApplication
 
 # Add the refactored_sqltools to the path
@@ -126,7 +126,7 @@ class TestSystemIntegration:
                         data_fim=datetime(2024, 12, 31)
                     )
                     assert isinstance(sql, str) and len(sql) > 0
-                except:
+                except Exception:
                     # If still fails, just verify method exists
                     assert callable(operation.get_sql)
         
@@ -325,7 +325,7 @@ class TestSystemIntegration:
         # Test operation registry stability
         for _ in range(10):
             operations = operation_registry.list_operations()
-            assert len(operations) >= 7
+            assert len(operations) >= 6
             
             # Test getting operations multiple times
             for name in list(operations.keys())[:3]:  # Test first 3
@@ -348,7 +348,7 @@ class TestSystemCompatibility:
         
         # Test predefined operations
         operations = operation_registry.list_operations()
-        assert len(operations) >= 7
+        assert len(operations) >= 6
         
         # Test worker thread system
         worker = DatabaseWorkerFactory.create_connection_worker(

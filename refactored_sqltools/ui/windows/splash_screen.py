@@ -296,7 +296,7 @@ class SplashScreen(QWidget):
         self.progress_bar.setMaximum(0)
         main_layout.addWidget(self.progress_bar)
 
-        version_label = CaptionLabel("Versão 2.0.2")
+        version_label = CaptionLabel("Versão 2.1.0")
         version_label.setAlignment(Qt.AlignCenter)
         version_label.setStyleSheet(f"color: {'#64748b' if dark else '#adb5bd'};")
         main_layout.addWidget(version_label)

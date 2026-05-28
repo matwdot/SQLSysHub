@@ -48,7 +48,7 @@ INNER JOIN ITEVDA i
 INNER JOIN PRODUTO p
     ON p.PROCOD = i.PROCOD
 WHERE
-    TX.TRNDAT BETWEEN '{data_inicio}' AND '{data_fim}'
+    TX.TRNDAT BETWEEN ? AND ?
     AND TX.TRNMENSNFE CONTAINING 'Rejeicao: Informado NCM inexistente'
     AND CAST(i.ITVSEQ AS INTEGER) = CAST(
         SUBSTRING(TX.TRNMENSNFE 
@@ -60,3 +60,6 @@ ORDER BY
     T.TRNDAT DESC,
     T.TRNNFCENUM,
     i.ITVSEQ;"""
+
+    def get_sql_params(self, **params):
+        return (params['data_inicio'], params['data_fim'])

@@ -5,7 +5,7 @@ This module provides the SQL Server-specific implementation of the DatabaseDrive
 interface, using the pyodbc driver library.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Sequence
 
 from .base import DatabaseDriver, QueryResult
 from ....utils.exceptions import ConnectionError, QueryExecutionError, DriverImportError
@@ -78,12 +78,15 @@ class SqlServerDriver(DatabaseDriver):
             }
             
             # Build connection string
+            safe_uid = self._escape_odbc_value(username)
+            safe_password = self._escape_odbc_value(password)
+            safe_database = self._escape_odbc_value(database)
             conn_str = (
                 f"DRIVER={{ODBC Driver 17 for SQL Server}};"
                 f"SERVER={host},{port};"
-                f"DATABASE={database};"
-                f"UID={username};"
-                f"PWD={password}"
+                f"DATABASE={safe_database};"
+                f"UID={safe_uid};"
+                f"PWD={safe_password}"
             )
             
             # Try alternative drivers if ODBC Driver 17 fails
@@ -94,7 +97,7 @@ class SqlServerDriver(DatabaseDriver):
                 conn_str_alt = conn_str.replace("ODBC Driver 17", "ODBC Driver 13")
                 try:
                     self._connection = self._driver_module.connect(conn_str_alt)
-                except:
+                except Exception:
                     # Try with SQL Server Native Client
                     conn_str_native = conn_str.replace(
                         "ODBC Driver 17 for SQL Server", 
@@ -102,7 +105,7 @@ class SqlServerDriver(DatabaseDriver):
                     )
                     try:
                         self._connection = self._driver_module.connect(conn_str_native)
-                    except:
+                    except Exception:
                         # Re-raise original error
                         raise e
             
@@ -125,7 +128,7 @@ class SqlServerDriver(DatabaseDriver):
                 self._cursor.close()
             if self._connection:
                 self._connection.close()
-        except:
+        except Exception:
             # Ignore errors during cleanup
             pass
         finally:
@@ -133,7 +136,7 @@ class SqlServerDriver(DatabaseDriver):
             self._cursor = None
             self._is_connected = False
     
-    def execute_query(self, query: str) -> QueryResult:
+    def execute_query(self, query: str, params: Optional[Sequence[Any]] = None) -> QueryResult:
         """
         Execute SQL query on SQL Server database.
         
@@ -150,7 +153,10 @@ class SqlServerDriver(DatabaseDriver):
         self._validate_connection()
         
         try:
-            self._cursor.execute(query)
+            if params:
+                self._cursor.execute(query, tuple(params))
+            else:
+                self._cursor.execute(query)
             return self._handle_query_result(query)
             
         except Exception as e:
@@ -158,7 +164,7 @@ class SqlServerDriver(DatabaseDriver):
             if self._connection:
                 try:
                     self._connection.rollback()
-                except:
+                except Exception:
                     pass
             
             raise QueryExecutionError(f"Falha na execução da query SQL Server: {str(e)}")
@@ -179,7 +185,7 @@ class SqlServerDriver(DatabaseDriver):
         if self._driver_module:
             try:
                 info['driver_version'] = self._driver_module.version
-            except:
+            except Exception:
                 pass
         
         return info
@@ -204,5 +210,10 @@ class SqlServerDriver(DatabaseDriver):
                 if 'SQL Server' in driver or 'ODBC' in driver
             ]
             return sql_server_drivers
-        except:
+        except Exception:
             return []
+
+    def _escape_odbc_value(self, value: str) -> str:
+        """Escape ODBC connection string values."""
+        text = str(value or "")
+        return "{" + text.replace("}", "}}") + "}"

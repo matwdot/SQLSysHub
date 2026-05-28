@@ -1,248 +1,251 @@
 """
-NCM JSON Manager
-
-Gerencia o download e carregamento do arquivo JSON de NCMs do Siscomex.
+NCM JSON manager.
 """
 
-import os
-import sys
 import json
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Tuple
 from pathlib import Path
+from typing import Dict, Optional, Tuple
+
+from .paths import get_base_path, get_user_data_path
+
 
 logger = logging.getLogger(__name__)
 
 
-def get_base_path() -> Path:
-    """
-    Retorna o caminho base da aplicação.
-    Funciona tanto em desenvolvimento quanto no executável PyInstaller.
-    """
-    if getattr(sys, 'frozen', False):
-        # Executando como executável PyInstaller
-        return Path(sys._MEIPASS)
-    else:
-        # Executando em desenvolvimento
-        return Path(__file__).parent.parent
-
-
-def get_user_data_path() -> Path:
-    """
-    Retorna o caminho para dados do usuário (gravável).
-    Usado para salvar arquivos JSON baixados.
-    """
-    if sys.platform == 'win32':
-        base = Path(os.environ.get('LOCALAPPDATA', os.path.expanduser('~')))
-    else:
-        base = Path(os.path.expanduser('~/.local/share'))
-    
-    app_data = base / 'SQLSysHub'
-    app_data.mkdir(parents=True, exist_ok=True)
-    return app_data
-
-
 class NCMManager:
-    """Gerenciador do arquivo JSON de NCMs do Siscomex."""
-    
+    """Manage Siscomex NCM JSON files."""
+
     NCM_URL = "https://portalunico.siscomex.gov.br/classif/api/publico/nomenclatura/download/json"
-    
+
     def __init__(self):
         self._ncm_data: Optional[Dict] = None
         self._last_update: Optional[str] = None
-        
+        self._json_source: Optional[str] = None
+
     @property
     def bundled_json_dir(self) -> Path:
-        """Diretório do JSON empacotado no executável (somente leitura)."""
-        return get_base_path() / "refactored_sqltools" / "json"
-    
+        """Directory containing bundled JSON files."""
+        return get_base_path() / "json"
+
     @property
     def user_json_dir(self) -> Path:
-        """Diretório do JSON do usuário (leitura/escrita)."""
+        """Writable user JSON directory."""
         json_dir = get_user_data_path() / "json"
         json_dir.mkdir(parents=True, exist_ok=True)
         return json_dir
-        
+
     def get_json_path(self) -> Optional[Path]:
-        """
-        Retorna o caminho do arquivo JSON de NCM existente.
-        Prioriza o arquivo do usuário (mais recente) sobre o empacotado.
-        """
+        """Return the newest available JSON file."""
         all_files = []
-        
-        # Procura no diretório do usuário primeiro
+
         if self.user_json_dir.exists():
-            user_files = list(self.user_json_dir.glob("Tabela_NCM_*.json"))
-            all_files.extend(user_files)
-        
-        # Procura no diretório empacotado
+            all_files.extend(self.user_json_dir.glob("Tabela_NCM_*.json"))
+
         if self.bundled_json_dir.exists():
-            bundled_files = list(self.bundled_json_dir.glob("Tabela_NCM_*.json"))
-            all_files.extend(bundled_files)
-        
-        if all_files:
-            # Retorna o mais recente baseado no nome do arquivo (data)
-            return max(all_files, key=lambda f: f.name)
-        
-        return None
-    
+            all_files.extend(self.bundled_json_dir.glob("Tabela_NCM_*.json"))
+
+        return max(all_files, key=lambda file: file.name) if all_files else None
+
     def is_json_available(self) -> Tuple[bool, str]:
-        """
-        Verifica se o arquivo JSON está disponível.
-        
-        Returns:
-            Tuple[bool, str]: (disponível, mensagem)
-        """
         json_path = self.get_json_path()
         if json_path and json_path.exists():
-            location = "usuário" if self.user_json_dir in json_path.parents or json_path.parent == self.user_json_dir else "aplicação"
+            location = self._get_file_location(json_path)
             return True, f"Arquivo encontrado ({location}): {json_path.name}"
-        return False, "Arquivo JSON não encontrado. Use 'Baixar NCMs' para obter."
-    
+        return False, "Arquivo JSON nao encontrado. Use 'Baixar NCMs' para obter."
+
     def load_json(self) -> Tuple[bool, str]:
-        """
-        Carrega o arquivo JSON em memória.
-        
-        Returns:
-            Tuple[bool, str]: (sucesso, mensagem)
-        """
+        """Load and validate an NCM JSON file into memory."""
         if self._ncm_data is not None:
-            return True, f"JSON já carregado ({len(self._ncm_data)} NCMs)"
-            
+            return True, f"JSON ja carregado ({len(self._ncm_data)} NCMs)"
+
         json_path = self.get_json_path()
         if not json_path or not json_path.exists():
-            return False, "Arquivo JSON não encontrado. Use 'Baixar NCMs' para obter."
-            
+            return False, "Arquivo JSON nao encontrado. Use 'Baixar NCMs' para obter."
+
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_path, "r", encoding="utf-8") as file:
+                data = json.load(file)
+
+            valid, message = self._validate_json_payload(data)
+            if not valid:
+                return False, message
+
+            self._ncm_data = self._index_ncm_data(data)
+            self._last_update = data.get("Data_Ultima_Atualizacao_NCM", "N/A")
+            self._json_source = str(json_path)
+
+            return True, f"Carregado: {len(self._ncm_data)} NCMs (Atualizacao: {self._last_update})"
+        except json.JSONDecodeError as exc:
+            return False, f"Erro ao decodificar JSON: {exc}"
+        except Exception as exc:
+            return False, f"Erro ao carregar JSON: {exc}"
+
+    @staticmethod
+    def _parse_update_date_str(date_str: str) -> Optional[datetime]:
+        if not date_str:
+            return None
+        date_str = date_str.replace("Vigente em ", "").strip()
+        try:
+            return datetime.strptime(date_str, "%d/%m/%Y")
+        except ValueError:
+            return None
+
+    def get_json_update_date(self) -> Optional[str]:
+        json_path = self.get_json_path()
+        if not json_path or not json_path.exists():
+            return None
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                
-            ncm_list = data.get('Nomenclaturas', [])
-            if not ncm_list:
-                return False, "Arquivo JSON vazio ou inválido"
-                
-            # Indexar por código NCM
-            self._ncm_data = {}
-            for item in ncm_list:
-                codigo = item.get('Codigo', '').replace('.', '')
-                self._ncm_data[codigo] = item
-                
-            self._last_update = data.get('Data_Ultima_Atualizacao_NCM', 'N/A')
-            
-            return True, f"Carregado: {len(self._ncm_data)} NCMs (Atualização: {self._last_update})"
-            
-        except json.JSONDecodeError as e:
-            return False, f"Erro ao decodificar JSON: {e}"
-        except Exception as e:
-            return False, f"Erro ao carregar JSON: {e}"
-    
+            return data.get("Data_Ultima_Atualizacao_NCM")
+        except Exception:
+            return None
+
     def download_json(self, progress_callback=None) -> Tuple[bool, str]:
-        """
-        Faz download do arquivo JSON do Siscomex.
-        
-        Args:
-            progress_callback: Função callback para reportar progresso
-            
-        Returns:
-            Tuple[bool, str]: (sucesso, mensagem)
-        """
+        """Download, validate and store the Siscomex JSON file."""
         try:
-            import urllib.request
             import ssl
-            
+            import urllib.request
+
             if progress_callback:
                 progress_callback("Conectando ao Siscomex...")
-            
-            # Criar contexto SSL
-            context = ssl.create_default_context()
-            
-            # Fazer requisição
-            req = urllib.request.Request(
+
+            request = urllib.request.Request(
                 self.NCM_URL,
-                headers={'User-Agent': 'SQLSysHub/2.0.1'}
+                headers={"User-Agent": "SQLSysHub/2.0.1"},
             )
-            
+
             if progress_callback:
                 progress_callback("Baixando arquivo JSON...")
-            
-            with urllib.request.urlopen(req, context=context, timeout=120) as response:
-                data = response.read()
-                
+
+            context = ssl.create_default_context()
+            with urllib.request.urlopen(request, context=context, timeout=120) as response:
+                raw_data = response.read()
+
             if progress_callback:
                 progress_callback("Validando dados...")
-            
-            # Validar JSON
-            json_data = json.loads(data.decode('utf-8'))
-            ncm_list = json_data.get('Nomenclaturas', [])
-            
-            if not ncm_list:
-                return False, "Arquivo baixado está vazio ou inválido"
-            
-            # Salvar no diretório do usuário (gravável)
-            date_str = datetime.now().strftime('%Y%m%d')
+
+            json_data = json.loads(raw_data.decode("utf-8"))
+            valid, message = self._validate_json_payload(json_data)
+            if not valid:
+                return False, message
+
+            nova_data_str = json_data.get("Data_Ultima_Atualizacao_NCM", "")
+            nova_data = self._parse_update_date_str(nova_data_str)
+
+            existing_path = self.get_json_path()
+            if existing_path and existing_path.exists():
+                try:
+                    with open(existing_path, "r", encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                    existing_data_str = existing_data.get("Data_Ultima_Atualizacao_NCM", "")
+                    existing_date = self._parse_update_date_str(existing_data_str)
+
+                    if nova_data and existing_date and nova_data <= existing_date:
+                        ncm_count = len(json_data.get("Nomenclaturas", []))
+                        msg = f"JSON ja atualizado ({existing_data_str}). Download possui {nova_data_str}."
+                        logger.info(msg)
+                        return True, msg
+                except Exception:
+                    pass
+
+            date_str = datetime.now().strftime("%Y%m%d")
             filename = f"Tabela_NCM_Vigente_{date_str}.json"
             filepath = self.user_json_dir / filename
-            
+            temp_path = filepath.with_suffix(filepath.suffix + ".tmp")
+
             if progress_callback:
                 progress_callback("Salvando arquivo...")
-            
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=2)
-            
-            # Limpar cache para forçar recarregamento
+
+            with open(temp_path, "w", encoding="utf-8") as file:
+                json.dump(json_data, file, ensure_ascii=False, indent=2)
+            temp_path.replace(filepath)
+
             self._ncm_data = None
             self._last_update = None
-            
-            logger.info(f"JSON salvo em: {filepath}")
-            
-            return True, f"Download concluído: {len(ncm_list)} NCMs salvos em {filepath.name}"
-            
-        except urllib.error.URLError as e:
-            return False, f"Erro de conexão: {e.reason}"
-        except json.JSONDecodeError as e:
-            return False, f"Erro ao processar JSON: {e}"
+            self._json_source = None
+
+            ncm_count = len(json_data.get("Nomenclaturas", []))
+            logger.info("JSON NCM salvo em: %s", filepath)
+            return True, f"Download concluido: {ncm_count} NCMs ({nova_data_str})"
+        except urllib.error.URLError as exc:
+            return False, f"Erro de conexao: {exc.reason}"
+        except json.JSONDecodeError as exc:
+            return False, f"Erro ao processar JSON: {exc}"
         except PermissionError:
-            return False, f"Sem permissão para salvar em: {self.user_json_dir}"
-        except Exception as e:
+            return False, f"Sem permissao para salvar em: {self.user_json_dir}"
+        except Exception as exc:
             logger.exception("Erro no download do JSON")
-            return False, f"Erro no download: {e}"
-    
+            return False, f"Erro no download: {exc}"
+
     def get_ncm_data(self) -> Optional[Dict]:
-        """Retorna os dados de NCM carregados."""
         return self._ncm_data
-    
+
     def get_last_update(self) -> Optional[str]:
-        """Retorna a data da última atualização."""
         return self._last_update
-    
+
     def get_json_info(self) -> Dict:
-        """Retorna informações sobre o arquivo JSON atual."""
         json_path = self.get_json_path()
         if not json_path:
             return {
-                'available': False,
-                'path': None,
-                'location': None,
-                'filename': None
+                "available": False,
+                "path": None,
+                "location": None,
+                "filename": None,
+                "source": self._json_source,
             }
-        
-        is_user = self.user_json_dir in json_path.parents or json_path.parent == self.user_json_dir
-        
+
         return {
-            'available': True,
-            'path': str(json_path),
-            'location': 'usuário' if is_user else 'aplicação',
-            'filename': json_path.name
+            "available": True,
+            "path": str(json_path),
+            "location": self._get_file_location(json_path),
+            "filename": json_path.name,
+            "source": self._json_source,
         }
 
+    def is_json_outdated(self) -> bool:
+        local_date_str = self.get_json_update_date()
+        if local_date_str is None:
+            return True
+        return self._parse_update_date_str(local_date_str) is None
 
-# Instância global para cache
+    def _validate_json_payload(self, data: Dict) -> Tuple[bool, str]:
+        if not isinstance(data, dict):
+            return False, "Arquivo JSON invalido: raiz deve ser objeto"
+
+        ncm_list = data.get("Nomenclaturas")
+        if not isinstance(ncm_list, list) or not ncm_list:
+            return False, "Arquivo JSON vazio ou invalido"
+
+        required_fields = ("Codigo", "Descricao", "Data_Fim")
+        for index, item in enumerate(ncm_list[:100]):
+            if not isinstance(item, dict):
+                return False, f"NCM invalido na posicao {index}"
+            missing = [field for field in required_fields if not item.get(field)]
+            if missing:
+                return False, f"NCM sem campos obrigatorios na posicao {index}: {', '.join(missing)}"
+
+        return True, "JSON valido"
+
+    def _index_ncm_data(self, data: Dict) -> Dict:
+        indexed = {}
+        for item in data.get("Nomenclaturas", []):
+            codigo = str(item.get("Codigo", "")).replace(".", "").strip()
+            if codigo:
+                indexed[codigo] = item
+        return indexed
+
+    def _get_file_location(self, path: Path) -> str:
+        return "usuario" if self.user_json_dir in path.parents or path.parent == self.user_json_dir else "aplicacao"
+
+
 _ncm_manager: Optional[NCMManager] = None
 
 
 def get_ncm_manager() -> NCMManager:
-    """Retorna a instância global do NCMManager."""
+    """Return the global NCMManager instance."""
     global _ncm_manager
     if _ncm_manager is None:
         _ncm_manager = NCMManager()
