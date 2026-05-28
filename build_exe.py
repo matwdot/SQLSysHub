@@ -28,6 +28,7 @@ def check_dependencies():
     required_packages = {
         'PyInstaller': 'PyInstaller',
         'PyQt5': 'PyQt5',
+        'qtawesome': 'qtawesome',
     }
     
     missing_packages = []
@@ -183,11 +184,15 @@ def create_pyinstaller_spec(icon_path, version_file):
 
 import os
 import sys
+from PyInstaller.utils.hooks import collect_data_files
 
 
 # Adicionar diretório atual ao path
 current_dir = os.path.dirname(os.path.abspath(SPEC))
 sys.path.insert(0, current_dir)
+
+# Coletar dados do qtawesome (ícones)
+qtawesome_datas = collect_data_files('qtawesome')
 
 # Hidden imports - todos os módulos do projeto
 hidden_imports = [
@@ -196,6 +201,10 @@ hidden_imports = [
     'PyQt5.QtGui', 
     'PyQt5.QtWidgets',
     'PyQt5.sip',
+    
+    # QtAwesome
+    'qtawesome',
+    'qtawesome.iconic_font',
     
     # Módulo principal
     'refactored_sqltools',
@@ -269,7 +278,7 @@ for driver in optional_drivers:
 # Dados adicionais a incluir
 # Nota: settings.ini é criado na pasta do usuário (%LOCALAPPDATA%/SQLSysHub)
 #       json é salvo na pasta do usuário, mas incluímos o padrão como fallback
-datas = [
+datas = qtawesome_datas + [
     ('imagens', 'imagens'),
 ]
 

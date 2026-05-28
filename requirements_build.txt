@@ -2,6 +2,7 @@
 PyInstaller>=5.0.0
 PyQt5>=5.15.0
 PyQt-Fluent-Widgets[full]>=1.11.0
+qtawesome>=1.2.0
 
 # Conversão de PNG para ICO (ícone do executável)
 Pillow>=10.0.0
