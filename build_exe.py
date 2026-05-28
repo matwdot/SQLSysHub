@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build script para criar executável do SQL SysHub v2.0.1
+Build script para criar executável do SQL SysHub v2.0.2
 
 Este script usa PyInstaller para criar um executável standalone
 do SQL SysHub com todas as dependências incluídas.
@@ -14,8 +14,8 @@ from pathlib import Path
 
 # Metadados do produto
 PRODUCT_NAME = "SQL SysHub"
-PRODUCT_VERSION = "2.0.1"
-FILE_VERSION = "2.0.1.0"
+PRODUCT_VERSION = "2.0.2"
+FILE_VERSION = "2.0.2.0"
 COMPANY_NAME = "SQL SysHub"
 FILE_DESCRIPTION = "SQL SysHub - Utilitários de Banco de Dados"
 INTERNAL_NAME = "SQLSysHub"
@@ -28,7 +28,6 @@ def check_dependencies():
     required_packages = {
         'PyInstaller': 'PyInstaller',
         'PyQt5': 'PyQt5',
-        'qtawesome': 'qtawesome'
     }
     
     missing_packages = []
@@ -184,14 +183,11 @@ def create_pyinstaller_spec(icon_path, version_file):
 
 import os
 import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
 
 # Adicionar diretório atual ao path
 current_dir = os.path.dirname(os.path.abspath(SPEC))
 sys.path.insert(0, current_dir)
-
-# Coletar dados do qtawesome (ícones)
-qtawesome_datas = collect_data_files('qtawesome')
 
 # Hidden imports - todos os módulos do projeto
 hidden_imports = [
@@ -200,10 +196,6 @@ hidden_imports = [
     'PyQt5.QtGui', 
     'PyQt5.QtWidgets',
     'PyQt5.sip',
-    
-    # QtAwesome
-    'qtawesome',
-    'qtawesome.iconic_font',
     
     # Módulo principal
     'refactored_sqltools',
@@ -277,10 +269,14 @@ for driver in optional_drivers:
 # Dados adicionais a incluir
 # Nota: settings.ini é criado na pasta do usuário (%LOCALAPPDATA%/SQLSysHub)
 #       json é salvo na pasta do usuário, mas incluímos o padrão como fallback
-datas = qtawesome_datas + [
+datas = [
     ('imagens', 'imagens'),
-    ('refactored_sqltools/json', 'refactored_sqltools/json'),
 ]
+
+# Incluir diretório json apenas se existir (fallback offline)
+json_src = os.path.join(current_dir, 'refactored_sqltools', 'json')
+if os.path.isdir(json_src):
+    datas.append(('refactored_sqltools/json', 'refactored_sqltools/json'))
 
 a = Analysis(
     ['run_sqltools.py'],
