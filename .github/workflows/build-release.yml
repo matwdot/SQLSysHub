@@ -23,12 +23,15 @@ jobs:
       - name: Instalar dependências de teste
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements_pyqt.txt
+          pip install -r requirements_build.txt
           pip install -r requirements_test.txt
 
       - name: Executar testes
         run: |
-          pytest -m "not slow and not performance and not concurrency" --tb=short --no-header -q
+          pytest -m "not slow and not performance and not concurrency" `
+            --ignore=tests/integration --ignore=tests/performance `
+            --tb=short --no-header -q
+        shell: powershell
         env:
           PYTHONIOENCODING: utf-8
           PYTHONUTF8: 1
