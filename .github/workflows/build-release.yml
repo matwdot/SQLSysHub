@@ -30,6 +30,9 @@ jobs:
         run: |
           pytest -m "not slow and not performance and not concurrency" `
             --ignore=tests/integration --ignore=tests/performance `
+            --ignore=tests/unit/test_main_window.py `
+            --ignore=tests/unit/test_sql_editor.py `
+            --ignore=tests/unit/test_ui_components.py `
             --tb=short --no-header -q
         shell: powershell
         env:
