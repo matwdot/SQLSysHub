@@ -149,6 +149,9 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 config.ini
+settings.ini
 *.log
 temp/
 tmp/
+coverage.json
+quality_metrics/

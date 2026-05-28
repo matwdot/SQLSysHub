@@ -254,6 +254,11 @@ hidden_imports = [
     'refactored_sqltools.utils.exceptions',
     'refactored_sqltools.utils.ncm_manager',
     'refactored_sqltools.utils.validators',
+    'refactored_sqltools.utils.paths',
+    'refactored_sqltools.utils.credential_store',
+    
+    # Theme
+    'refactored_sqltools.ui.theme_manager',
 ]
 
 # Adicionar drivers de banco opcionais se disponíveis
